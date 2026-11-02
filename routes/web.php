@@ -1,34 +1,20 @@
-
 <?php
 
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\DocumentController;
-use App\Http\Controllers\RackController;
+use App\Http\Controllers\BorrowingController;
+use App\Http\Controllers\DocumentAttachmentController;
 use Illuminate\Support\Facades\Route;
 
-// Halaman utama
-Route::get('/', function () {
-    return redirect()->route('dashboard');
-});
+// File download & inline streaming (native browser rendering)
+Route::get('/attachments/{attachment}/download', [DocumentAttachmentController::class, 'download'])
+    ->name('attachments.download');
+Route::get('/attachments/{attachment}/preview', [DocumentAttachmentController::class, 'preview'])
+    ->name('attachments.preview');
 
-// Halaman login
-Route::get('/login', [AuthController::class, 'showLogin'])
-    ->name('login');
+// Printable physical slip
+Route::get('/borrowings/{borrowing}/slip', [BorrowingController::class, 'slip'])
+    ->name('borrowings.slip');
 
-Route::post('/login', [AuthController::class, 'login'])
-    ->name('login.post');
-
-Route::post('/logout', [AuthController::class, 'logout'])
-    ->name('logout');
-
-// Halaman yang memerlukan login
-Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])
-        ->name('dashboard');
-
-    Route::resource('/documents', DocumentController::class);
-
-    Route::get('/racks', [RackController::class, 'index'])
-        ->name('racks.index');
-});
+// React SPA Catch-all Route
+Route::get('/{any?}', function () {
+    return view('app');
+})->where('any', '.*');

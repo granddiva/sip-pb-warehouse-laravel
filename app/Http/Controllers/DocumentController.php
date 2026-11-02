@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
+use App\Models\Box;
 use App\Models\Document;
 use App\Models\DocumentItem;
 use Illuminate\Http\Request;

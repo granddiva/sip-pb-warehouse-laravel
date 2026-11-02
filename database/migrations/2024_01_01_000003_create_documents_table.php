@@ -10,6 +10,8 @@ return new class extends Migration
     {
         Schema::create('documents', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('box_id')->nullable()->constrained('boxes')->nullOnDelete();
             $table->string('nomor_pb')->unique();
             $table->date('tanggal_pb');
             $table->string('bagian');
@@ -25,6 +27,8 @@ return new class extends Migration
             $table->text('catatan_arsip')->nullable();
             $table->string('uploaded_by')->nullable();
             $table->timestamps();
+
+            $table->index(['nomor_pb', 'tanggal_pb', 'status', 'bagian']);
         });
     }
 

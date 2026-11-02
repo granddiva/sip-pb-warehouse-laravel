@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('document_items', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('document_id')->constrained('documents')->onDelete('cascade');
+            $table->foreignId('document_id')->constrained('documents')->cascadeOnDelete();
             $table->string('nama');
             $table->string('part_number')->nullable();
             $table->integer('jumlah')->default(1);

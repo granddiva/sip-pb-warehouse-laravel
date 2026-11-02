@@ -1,11 +1,30 @@
 @import 'tailwindcss';
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
+@source '../**/*.jsx';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --bms-navy-950: #090d16;
+  --bms-navy-900: #0f172a;
+  --bms-navy-800: #1e293b;
+  --bms-navy-700: #334155;
+  --bms-blue-600: #0284c7;
+  --bms-blue-500: #0ea5e9;
+  --bms-blue-700: #0369a1;
+  --bms-amber-500: #f59e0b;
+  --bms-emerald-500: #10b981;
+  --bms-rose-500: #ef4444;
+  --bms-indigo-500: #6366f1;
+  --bg-page: #f8fafc;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-page);
+  color: #0f172a;
 }

@@ -28,6 +28,9 @@ import {
   FileText,
   RotateCcw,
   Sparkles,
+  QrCode,
+  Tag,
+  Check,
 } from 'lucide-react';
 import { rackApi } from '../api';
 
@@ -867,182 +870,339 @@ export default function WarehouseRacksPage({ onNavigate, onToast }) {
         )}
       </div>
 
-      {/* 4. FLYOUT SIDE DRAWER (Interactive Box Inspection & Documents List) */}
+      {/* 4. MODAL 2-KOLOM 'ORDNER DOSSIER' DI TENGAH LAYAR (Inspeksi Fisik Box & Manifest PB) */}
       {drawerBox && (
-        <div className="fixed inset-0 z-[9999] overflow-hidden">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity"
-            onClick={closeDrawer}
-          />
-
-          <div className="absolute inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10">
-            <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col border-l border-slate-200 animate-in slide-in-from-right duration-200">
-              {/* Drawer Top Header Bar */}
-              <div className="p-5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+        <div className="fixed inset-0 z-[9999] bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 overflow-hidden flex flex-col max-h-[92vh]">
+            {/* Top Modal Header */}
+            <div className="px-5 sm:px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-sky-500/20 text-sky-400 border border-sky-500/30 flex items-center justify-center flex-shrink-0">
+                  <BoxIcon className="w-5 h-5" />
+                </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono font-bold text-sky-400 uppercase tracking-wider">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-mono font-bold tracking-wider px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-300 border border-sky-400/20">
+                      PASPOR FISIK ORDNER
+                    </span>
+                    <span className="text-xs font-mono font-black text-white">
                       {currentRack?.kode_rak} • {drawerBox.nomor_box}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      (B{drawerBox.baris_ke} K{drawerBox.kolom_ke})
+                    <span className="text-[11px] font-mono text-slate-400">
+                      [Tingkat Ambalan B{drawerBox.baris_ke} - Kolom {drawerBox.kolom_ke}]
                     </span>
                   </div>
-                  <h3 className="text-base font-black text-white mt-0.5">
-                    Inspeksi Ordner & Berkas PB
+                  <h3 className="text-sm sm:text-base font-black text-white tracking-tight mt-0.5">
+                    Meja Inspeksi Berkas & Verifikasi Fisik Ordner
                   </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Kapasitas: {drawerBox.total_dokumen} / {drawerBox.kapasitas_maksimal} Map ({drawerBox.persentase_kapasitas}%)
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleToggleBoxLock}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-                      drawerBox.status === 'Penuh (Terkunci)'
-                        ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-600/30'
-                        : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700'
-                    }`}
-                    title={
-                      drawerBox.status === 'Penuh (Terkunci)'
-                        ? 'Klik untuk membuka kunci box'
-                        : 'Kunci box ini jika fisik ordner sudah penuh'
-                    }
-                  >
-                    {drawerBox.status === 'Penuh (Terkunci)' ? (
-                      <Lock className="w-3.5 h-3.5" />
-                    ) : (
-                      <Unlock className="w-3.5 h-3.5" />
-                    )}
-                    <span>
-                      {drawerBox.status === 'Penuh (Terkunci)' ? 'Terkunci Penuh' : 'Kunci Penuh'}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={closeDrawer}
-                    className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
                 </div>
               </div>
 
-              {/* Physical Location Hierarchy Bar */}
-              <div className="bg-slate-100 px-5 py-2.5 border-b border-slate-200 text-xs font-medium text-slate-700 flex items-center justify-between">
-                <div className="flex items-center gap-1 truncate text-[11px]">
-                  <span className="text-slate-500">Posisi:</span>
-                  <strong className="text-slate-900">{currentRack?.nama_rak}</strong>
-                  <span>&gt;</span>
-                  <span>Ambalan B{drawerBox.baris_ke}</span>
-                  <span>&gt;</span>
-                  <span>Kolom {drawerBox.kolom_ke}</span>
-                </div>
-                <span className="text-[10px] font-mono text-slate-500 whitespace-nowrap">
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={handleToggleBoxLock}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    drawerBox.status === 'Penuh (Terkunci)'
+                      ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-600/30'
+                      : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700'
+                  }`}
+                  title={
+                    drawerBox.status === 'Penuh (Terkunci)'
+                      ? 'Klik untuk membuka kunci box'
+                      : 'Kunci box ini jika fisik ordner sudah penuh'
+                  }
+                >
+                  {drawerBox.status === 'Penuh (Terkunci)' ? (
+                    <Lock className="w-3.5 h-3.5" />
+                  ) : (
+                    <Unlock className="w-3.5 h-3.5" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {drawerBox.status === 'Penuh (Terkunci)' ? 'Terkunci Penuh' : 'Kunci Penuh'}
+                  </span>
+                </button>
+
+                <button
+                  onClick={closeDrawer}
+                  className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+                  title="Tutup Meja Periksa (Esc)"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Hierarchical Location Ribbon (Fixed text overflow) */}
+            <div className="bg-slate-100 px-5 sm:px-6 py-2 border-b border-slate-200 text-xs font-medium text-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 flex-shrink-0">
+              <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Lokasi Gudang:</span>
+                <span className="font-bold text-slate-900">{currentRack?.nama_rak}</span>
+                <ChevronRight className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                <span className="text-slate-700">Ambalan B{drawerBox.baris_ke} (Tingkat {drawerBox.baris_ke})</span>
+                <ChevronRight className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                <span className="text-slate-700 font-semibold">Kolom {drawerBox.kolom_ke}</span>
+              </div>
+
+              <div className="flex items-center gap-2 text-[11px] font-mono self-start sm:self-auto">
+                <span className="px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700 font-bold">
+                  Terisi: {drawerBox.total_dokumen} / {drawerBox.kapasitas_maksimal} Map
+                </span>
+                <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold">
                   Sisa: {drawerBox.sisa_kapasitas} Slot
                 </span>
               </div>
+            </div>
 
-              {/* Drawer Search Filter inside Box */}
-              <div className="p-4 border-b border-slate-100 bg-white">
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={drawerSearch}
-                    onChange={(e) => setDrawerSearch(e.target.value)}
-                    placeholder="Filter berkas PB dalam box ini..."
-                    className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-sky-500 focus:outline-none bg-slate-50 focus:bg-white"
-                  />
-                </div>
-              </div>
+            {/* Modal Body: 2-Column Responsive Master-Detail Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-y-auto">
+              {/* LEFT COLUMN (5 Cols): Paspor Fisik, Pratinjau Stiker Thermal & Kuota */}
+              <div className="lg:col-span-5 p-5 bg-slate-50/70 border-b lg:border-b-0 lg:border-r border-slate-200 space-y-4 flex flex-col justify-between">
+                <div className="space-y-4">
+                  {/* Pratinjau Stiker Thermal Fisik (Realistic Warehouse Label) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                        Pratinjau Label Stiker Box:
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">Thermal 100×50mm</span>
+                    </div>
 
-              {/* Drawer Content: List of Documents */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {drawerLoading ? (
-                  <div className="py-12 text-center text-slate-400">
-                    <div className="w-8 h-8 border-3 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                    <span className="text-xs">Memuat dokumen box...</span>
-                  </div>
-                ) : filteredDrawerDocs.length === 0 ? (
-                  <div className="text-center py-12 text-slate-400 space-y-2">
-                    <FolderOpen className="w-10 h-10 mx-auto text-slate-300" />
-                    <p className="text-xs font-semibold text-slate-600">
-                      {drawerSearch ? 'Tidak ada dokumen sesuai pencarian' : 'Box ini masih kosong'}
-                    </p>
-                    <p className="text-[11px] text-slate-400">
-                      {drawerSearch
-                        ? 'Coba ganti kata kunci pencarian.'
-                        : 'Belum ada dokumen PB yang dialokasikan ke box ini.'}
-                    </p>
-                  </div>
-                ) : (
-                  filteredDrawerDocs.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 hover:bg-sky-50/50 hover:border-sky-300 transition-all space-y-2"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono font-bold text-sky-700 text-xs">
-                          {doc.nomor_pb}
-                        </span>
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            doc.status.includes('Terverifikasi')
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : doc.status.includes('Dipinjam')
-                              ? 'bg-rose-100 text-rose-700'
-                              : 'bg-amber-100 text-amber-700'
-                          }`}
-                        >
-                          {doc.status}
-                        </span>
+                    <div className="bg-white rounded-2xl p-4 border-2 border-slate-300 shadow-sm relative overflow-hidden space-y-2.5">
+                      <div className="flex items-center justify-between border-b border-dashed border-slate-200 pb-2">
+                        <div className="text-[10px] font-bold text-slate-800 tracking-tight leading-tight">
+                          PT BESMINDO MATERI SEWATAMA
+                          <div className="text-[9px] text-slate-500 font-normal">Sistem Pengarsipan Dokumen PB</div>
+                        </div>
+                        <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center p-1">
+                          <QrCode className="w-full h-full text-white" />
+                        </div>
                       </div>
 
-                      <div className="text-xs font-semibold text-slate-800">{doc.nama_pemohon}</div>
-                      <div className="text-[11px] text-slate-500">{doc.bagian}</div>
+                      <div className="flex items-baseline justify-between pt-0.5">
+                        <div>
+                          <div className="text-xl font-mono font-black text-slate-900 tracking-tight">
+                            {drawerBox.nomor_box}
+                          </div>
+                          <div className="text-[10px] font-mono font-bold text-sky-700">
+                            {currentRack?.kode_rak} • B{drawerBox.baris_ke}-K{drawerBox.kolom_ke}
+                          </div>
+                        </div>
 
-                      {doc.keterangan && (
-                        <p className="text-[11px] text-slate-600 italic line-clamp-2">
-                          "{doc.keterangan}"
-                        </p>
-                      )}
+                        <div className="text-right">
+                          <span
+                            className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border ${
+                              drawerBox.status === 'Penuh (Terkunci)'
+                                ? 'bg-rose-100 text-rose-800 border-rose-300'
+                                : drawerBox.persentase_kapasitas >= 80
+                                ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                            }`}
+                          >
+                            {drawerBox.status}
+                          </span>
+                        </div>
+                      </div>
 
-                      <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs">
-                        <span className="text-[10px] text-slate-400">{doc.tanggal_indonesia}</span>
-                        <button
-                          onClick={() => {
-                            closeDrawer();
-                            onNavigate('document-detail', doc.id);
-                          }}
-                          className="font-bold text-sky-600 hover:text-sky-700 hover:underline flex items-center gap-1"
-                        >
-                          <span>Buka Detail PB</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </button>
+                      <div className="text-[10px] text-slate-600 bg-slate-50 rounded-lg p-2 border border-slate-100 flex items-center justify-between">
+                        <span className="truncate">{currentRack?.zona_lokasi}</span>
+                        <span className="font-mono font-bold text-slate-800 whitespace-nowrap ml-2">
+                          Maks: {drawerBox.kapasitas_maksimal} Map
+                        </span>
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
+                  </div>
 
-              {/* Drawer Footer Actions */}
-              <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+                  {/* Meter Utilisasi Kuota Fisik */}
+                  <div className="bg-white rounded-2xl p-4 border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-700">Keterisian Fisik Ordner</span>
+                      <strong className="text-slate-900 font-mono text-sm">
+                        {drawerBox.persentase_kapasitas}%
+                      </strong>
+                    </div>
+
+                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          drawerBox.is_full || drawerBox.status === 'Penuh (Terkunci)'
+                            ? 'bg-rose-500'
+                            : drawerBox.is_warning
+                            ? 'bg-amber-500'
+                            : 'bg-emerald-500'
+                        }`}
+                        style={{ width: `${drawerBox.persentase_kapasitas}%` }}
+                      />
+                    </div>
+
+                    <div className="text-[11px] text-slate-500 flex items-center justify-between pt-1">
+                      <span>{drawerBox.total_dokumen} Map terarsip</span>
+                      <span className="font-bold text-emerald-700">
+                        {drawerBox.sisa_kapasitas} slot tersedia
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Audit Alert jika ada berkas dipinjam */}
+                  {drawerBox.has_borrowed_docs && (
+                    <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-2.5">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-xs">
+                        <div className="font-bold">Peringatan Audit Fisik</div>
+                        <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+                          Terdapat berkas PB dari box ini yang sedang dipinjam keluar gudang. Harap pantau tanggal batas pengembalian.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Catatan Ordner */}
+                  {drawerBox.catatan && (
+                    <div className="text-xs text-slate-600 bg-white p-3 rounded-2xl border border-slate-200">
+                      <span className="font-bold text-slate-700 block mb-1">Catatan Ordner:</span>
+                      <p className="text-[11px] text-slate-500 italic leading-relaxed">
+                        "{drawerBox.catatan}"
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Left Column Bottom Action */}
                 <button
                   onClick={() => onNavigate('qrcodes')}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-2"
+                  className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all"
                 >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Cetak Stiker Label Box</span>
+                  <Printer className="w-4 h-4 text-sky-400" />
+                  <span>Cetak Label Thermal Box Ini</span>
                 </button>
-                <button
-                  onClick={closeDrawer}
-                  className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                >
-                  Tutup
-                </button>
+              </div>
+
+              {/* RIGHT COLUMN (7 Cols): Manifest Dokumen PB di Dalam Box */}
+              <div className="lg:col-span-7 p-5 sm:p-6 flex flex-col justify-between space-y-4">
+                <div className="space-y-3.5">
+                  {/* Search Bar & Document Count */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                        Manifest Berkas PB di Dalam Ordner
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        Ditemukan {filteredDrawerDocs.length} dari {drawerDocs.length} berkas terdaftar
+                      </p>
+                    </div>
+
+                    <div className="relative w-full sm:w-60">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={drawerSearch}
+                        onChange={(e) => setDrawerSearch(e.target.value)}
+                        placeholder="Cari No. PB, pemohon..."
+                        className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-sky-500 focus:outline-none bg-slate-50 focus:bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Document List Container */}
+                  <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                    {drawerLoading ? (
+                      <div className="py-16 text-center text-slate-400">
+                        <div className="w-8 h-8 border-3 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                        <span className="text-xs font-semibold">Memuat manifest dokumen box...</span>
+                      </div>
+                    ) : filteredDrawerDocs.length === 0 ? (
+                      /* Enhanced Empty State (Clean, welcoming & informative) */
+                      <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/70 p-8 text-center space-y-3">
+                        <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 shadow-sm text-slate-400 flex items-center justify-center mx-auto">
+                          <FolderOpen className="w-6 h-6 text-sky-500" />
+                        </div>
+                        <div>
+                          <h5 className="text-sm font-black text-slate-800">
+                            {drawerSearch ? 'Tidak Ada Berkas yang Cocok' : 'Ordner Fisik Siap Pakai (Kosong)'}
+                          </h5>
+                          <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 leading-relaxed">
+                            {drawerSearch
+                              ? `Tidak ditemukan berkas dengan kata kunci "${drawerSearch}". Coba kata kunci lain.`
+                              : `Box ini dalam kondisi bersih dan belum memiliki berkas PB teralokasi. Kapasitas penuh sebanyak ${drawerBox.kapasitas_maksimal} map siap untuk digunakan.`}
+                          </p>
+                        </div>
+
+                        {!drawerSearch && (
+                          <div className="pt-2 flex items-center justify-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Ambalan B{drawerBox.baris_ke} • Kolom {drawerBox.kolom_ke} Siap Digunakan</span>
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      filteredDrawerDocs.map((doc) => (
+                        <div
+                          key={doc.id}
+                          className="p-3.5 rounded-2xl border border-slate-200/90 bg-white hover:bg-sky-50/40 hover:border-sky-300 transition-all space-y-2 shadow-xs group"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono font-bold text-sky-700 text-xs">
+                              {doc.nomor_pb}
+                            </span>
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                doc.status.includes('Terverifikasi')
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : doc.status.includes('Dipinjam')
+                                  ? 'bg-rose-100 text-rose-700'
+                                  : 'bg-amber-100 text-amber-700'
+                              }`}
+                            >
+                              {doc.status}
+                            </span>
+                          </div>
+
+                          <div className="text-xs font-semibold text-slate-800 flex items-center justify-between">
+                            <span>{doc.nama_pemohon}</span>
+                            <span className="text-[11px] text-slate-500 font-normal">{doc.bagian}</span>
+                          </div>
+
+                          {doc.keterangan && (
+                            <p className="text-[11px] text-slate-600 italic line-clamp-2">
+                              "{doc.keterangan}"
+                            </p>
+                          )}
+
+                          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {doc.tanggal_indonesia}
+                            </span>
+                            <button
+                              onClick={() => {
+                                closeDrawer();
+                                onNavigate('document-detail', doc.id);
+                              }}
+                              className="font-bold text-sky-600 hover:text-sky-700 group-hover:underline flex items-center gap-1"
+                            >
+                              <span>Buka Dokumen PB</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Column Bottom Status & Action */}
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                  <div className="text-[11px] text-slate-400">
+                    Tekan <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border text-slate-600 font-mono font-bold">Esc</kbd> untuk menutup
+                  </div>
+
+                  <button
+                    onClick={closeDrawer}
+                    className="px-5 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors"
+                  >
+                    Tutup Meja Periksa
+                  </button>
+                </div>
               </div>
             </div>
           </div>

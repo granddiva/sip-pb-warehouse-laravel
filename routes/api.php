@@ -27,6 +27,7 @@ Route::middleware(['web'])->group(function () {
         Route::get('/documents', [DocumentController::class, 'index']);
         Route::get('/documents/{document}', [DocumentController::class, 'show']);
         Route::post('/documents', [DocumentController::class, 'store']);
+        Route::post('/documents/{document}/verify-physical', [DocumentController::class, 'verifyPhysical']);
         Route::put('/documents/{document}', [DocumentController::class, 'update']);
         Route::delete('/documents/{document}', [DocumentController::class, 'destroy']);
 

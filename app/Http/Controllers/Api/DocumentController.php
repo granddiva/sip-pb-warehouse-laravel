@@ -76,6 +76,8 @@ class DocumentController extends Controller
                 'total_attachments'  => $doc->attachments->count(),
                 'total_harga'        => $doc->total_harga,
                 'uploaded_by'        => $doc->uploaded_by,
+                'is_pending_physical'=> str_contains($doc->status, 'Menunggu'),
+                'verified_at'        => $doc->verified_at ? $doc->verified_at->format('d/m/Y H:i') : null,
             ];
         });
 
@@ -91,24 +93,30 @@ class DocumentController extends Controller
             'borrowingLogs.handledByUser',
             'activeBorrowing.handledByUser',
             'user',
+            'verifiedByUser',
         ]);
 
         return response()->json([
-            'id'                 => $document->id,
-            'nomor_pb'           => $document->nomor_pb,
-            'tanggal_pb'         => $document->tanggal_pb->format('Y-m-d'),
-            'tanggal_indonesia'  => $document->tanggal_indonesia,
-            'bagian'             => $document->bagian,
-            'nama_pemohon'       => $document->nama_pemohon,
-            'nip_pemohon'        => $document->nip_pemohon,
-            'keterangan'         => $document->keterangan,
-            'status'             => $document->status,
-            'status_class'       => $document->status_class,
-            'lokasi_rak'         => $document->lokasi_rak_formatted,
-            'nomor_box'          => $document->nomor_box_formatted,
-            'catatan_arsip'      => $document->catatan_arsip,
-            'uploaded_by'        => $document->uploaded_by ?? $document->user?->name ?? 'Admin',
-            'total_harga'        => $document->total_harga,
+            'id'                   => $document->id,
+            'nomor_pb'             => $document->nomor_pb,
+            'tanggal_pb'           => $document->tanggal_pb->format('Y-m-d'),
+            'tanggal_indonesia'    => $document->tanggal_indonesia,
+            'bagian'               => $document->bagian,
+            'nama_pemohon'         => $document->nama_pemohon,
+            'nip_pemohon'          => $document->nip_pemohon,
+            'keterangan'           => $document->keterangan,
+            'status'               => $document->status,
+            'status_class'         => $document->status_class,
+            'lokasi_rak'           => $document->lokasi_rak_formatted,
+            'nomor_box'            => $document->nomor_box_formatted,
+            'catatan_arsip'        => $document->catatan_arsip,
+            'uploaded_by'          => $document->uploaded_by ?? $document->user?->name ?? 'Admin',
+            'verified_at'          => $document->verified_at ? $document->verified_at->format('d/m/Y H:i') : null,
+            'verified_by'          => $document->verifiedByUser?->name,
+            'kondisi_berkas_fisik' => $document->kondisi_berkas_fisik,
+            'catatan_verifikasi'   => $document->catatan_verifikasi,
+            'is_pending_physical'  => str_contains($document->status, 'Menunggu'),
+            'total_harga'          => $document->total_harga,
             'items'              => $document->items,
             'attachments'        => $document->attachments->map(fn($att) => [
                 'id'            => $att->id,
@@ -482,6 +490,65 @@ class DocumentController extends Controller
             'dept_code'          => $deptCode,
             'year'               => $year,
             'month'              => $month,
+        ]);
+    }
+
+    public function verifyPhysical(Request $request, Document $document)
+    {
+        // Guard 1: Only pending physical documents can be verified
+        if (!str_contains($document->status, 'Menunggu')) {
+            return response()->json([
+                'success' => false,
+                'message' => "Dokumen {$document->nomor_pb} sudah dalam status '{$document->status}' sehingga tidak memerlukan verifikasi fisik awal.",
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'lokasi_rak'           => 'required|string',
+            'nomor_box'            => 'required|string',
+            'kondisi_berkas_fisik' => 'required|string|in:Asli & Cap Basah Lengkap,Salinan Resmi Terlegalisir,Sebagian Dokumen Asli',
+            'cek_tanda_tangan'     => 'required|boolean|accepted',
+            'cek_lampiran_lengkap' => 'required|boolean',
+            'catatan_verifikasi'   => 'nullable|string|max:1000',
+        ]);
+
+        // Resolve Box and verify it's not locked
+        $box = Box::whereHas('rack', fn($q) => $q->where('kode_rak', $validated['lokasi_rak']))
+            ->where('nomor_box', $validated['nomor_box'])
+            ->first();
+
+        if ($box && $box->status === 'Penuh (Terkunci)') {
+            return response()->json([
+                'success' => false,
+                'message' => "Box {$box->nomor_box} pada {$validated['lokasi_rak']} sedang dikunci/penuh. Silakan pilih box lain.",
+            ], 422);
+        }
+
+        $user = Auth::user();
+
+        $document->update([
+            'status'               => 'Terverifikasi & Diarsipkan',
+            'lokasi_rak'           => $validated['lokasi_rak'],
+            'nomor_box'            => $validated['nomor_box'],
+            'box_id'               => $box?->id,
+            'verified_at'          => now(),
+            'verified_by_user_id'  => $user?->id,
+            'kondisi_berkas_fisik' => $validated['kondisi_berkas_fisik'],
+            'catatan_verifikasi'   => $validated['catatan_verifikasi'] ?? null,
+            'catatan_arsip'        => $document->catatan_arsip
+                ? $document->catatan_arsip . "\n[Verifikasi Fisik " . now()->format('d/m/Y') . " by " . ($user->name ?? 'Admin') . "]: " . ($validated['catatan_verifikasi'] ?? 'Sesuai fisik')
+                : $validated['catatan_verifikasi'],
+        ]);
+
+        ActivityLog::log(
+            'verify_physical',
+            "Verifikasi fisik dokumen PB {$document->nomor_pb} oleh " . ($user->name ?? 'Admin') . " dan pengarsipan pada {$validated['lokasi_rak']} - {$validated['nomor_box']} (Kondisi: {$validated['kondisi_berkas_fisik']})"
+        );
+
+        return response()->json([
+            'success'  => true,
+            'document' => $document->fresh(['box.rack', 'verifiedByUser']),
+            'message'  => "Dokumen PB {$document->nomor_pb} berhasil diverifikasi dan resmi disimpan pada {$validated['lokasi_rak']} - {$validated['nomor_box']}.",
         ]);
     }
 }

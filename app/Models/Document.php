@@ -14,15 +14,22 @@ class Document extends Model
         'nama_pemohon', 'nip_pemohon', 'keterangan', 'status',
         'lokasi_rak', 'nomor_box', 'dokumen', 'dokumen_size', 'dokumen_path',
         'catatan_arsip', 'uploaded_by',
+        'verified_at', 'verified_by_user_id', 'kondisi_berkas_fisik', 'catatan_verifikasi',
     ];
 
     protected $casts = [
-        'tanggal_pb' => 'date',
+        'tanggal_pb'  => 'date',
+        'verified_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function verifiedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'verified_by_user_id');
     }
 
     public function box(): BelongsTo

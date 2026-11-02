@@ -15,10 +15,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  ShieldCheck,
 } from 'lucide-react';
 import { documentApi } from '../api';
 
-export default function DocumentsPage({ onNavigate, onToast }) {
+export default function DocumentsPage({ onNavigate, onToast, onOpenVerificationModal }) {
   const [documents, setDocuments] = useState([]);
   const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
   const [loading, setLoading] = useState(true);
@@ -293,6 +294,16 @@ export default function DocumentsPage({ onNavigate, onToast }) {
                     </td>
                     <td className="py-3.5 px-4 text-right whitespace-nowrap">
                       <div className="inline-flex items-center gap-1">
+                        {doc.status.includes('Menunggu') && onOpenVerificationModal && (
+                          <button
+                            onClick={() => onOpenVerificationModal(doc)}
+                            title="Verifikasi keabsahan fisik berkas hardcopy & simpan ke rak"
+                            className="px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-sm mr-1 transition-all"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <span>Verifikasi Fisik</span>
+                          </button>
+                        )}
                         <button
                           onClick={() => onNavigate('document-detail', doc.id)}
                           title="Lihat Rincian Dokumen"

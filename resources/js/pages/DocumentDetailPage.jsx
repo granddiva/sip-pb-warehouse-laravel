@@ -13,6 +13,8 @@ import {
   ArrowLeft,
   Edit,
   Printer,
+  ShieldCheck,
+  FileCheck2,
 } from 'lucide-react';
 import { documentApi, attachmentApi } from '../api';
 
@@ -23,6 +25,7 @@ export default function DocumentDetailPage({
   onOpenPreview,
   onOpenReturnModal,
   onOpenBorrowModal,
+  onOpenVerificationModal,
 }) {
   const [doc, setDoc] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -134,6 +137,17 @@ export default function DocumentDetailPage({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Action: Verify Physical */}
+          {doc.status.includes('Menunggu') && onOpenVerificationModal && (
+            <button
+              onClick={() => onOpenVerificationModal(doc)}
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-md shadow-sky-600/30 flex items-center gap-1.5 transition-all"
+            >
+              <ShieldCheck className="w-4 h-4 stroke-[2.5]" />
+              <span>Verifikasi Fisik & Sahkan</span>
+            </button>
+          )}
+
           {/* Action: Borrow or Return */}
           {isBorrowed ? (
             <button
@@ -172,6 +186,62 @@ export default function DocumentDetailPage({
           </button>
         </div>
       </div>
+
+      {/* Pending Physical Verification Alert Banner */}
+      {doc.status.includes('Menunggu') && (
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center flex-shrink-0 mt-0.5">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-black text-amber-950 uppercase tracking-wide">
+                Berkas Fisik Belum Diverifikasi di Gudang
+              </div>
+              <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+                Dokumen ini baru tersimpan secara digital. Petugas arsip gudang perlu memverifikasi kelengkapan berkas fisik asli (hardcopy), memeriksa cap basah, dan menempatkannya ke ordner box rak gudang.
+              </p>
+            </div>
+          </div>
+
+          {onOpenVerificationModal && (
+            <button
+              onClick={() => onOpenVerificationModal(doc)}
+              className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-sm whitespace-nowrap flex-shrink-0 flex items-center gap-1.5 self-start sm:self-center"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Verifikasi & Tempatkan Sekarang</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Official Physical Verification Seal Badge */}
+      {doc.verified_at && (
+        <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-emerald-900 flex items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">
+              <FileCheck2 className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-black text-emerald-950 flex items-center gap-2">
+                <span>BERKAS FISIK TELAH DIVERIFIKASI & DIARSIPKAN</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-200 text-emerald-800 font-bold">
+                  {doc.kondisi_berkas_fisik || 'Asli & Cap Basah Lengkap'}
+                </span>
+              </div>
+              <div className="text-[11px] text-emerald-800 mt-0.5">
+                Diverifikasi oleh: <strong>{doc.verified_by || 'Staff Warehouse'}</strong> pada <strong>{doc.verified_at}</strong> • Lokasi Ordner: <strong>{doc.lokasi_rak} – {doc.nomor_box}</strong>
+              </div>
+              {doc.catatan_verifikasi && (
+                <div className="text-[11px] text-emerald-700 italic mt-0.5">
+                  BAP: "{doc.catatan_verifikasi}"
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Active Borrowing Banner (If currently borrowed) */}
       {isBorrowed && (

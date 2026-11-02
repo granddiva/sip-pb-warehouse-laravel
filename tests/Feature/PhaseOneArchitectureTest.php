@@ -174,4 +174,62 @@ class PhaseOneArchitectureTest extends TestCase
 
         $this->assertEquals('Terverifikasi & Diarsipkan', $borrowing->document->status);
     }
+
+    public function test_cannot_verify_non_pending_document(): void
+    {
+        $admin = User::where('username', 'admin')->first();
+        $verifiedDoc = Document::where('status', 'Terverifikasi & Diarsipkan')->first();
+        $this->assertNotNull($verifiedDoc);
+
+        $response = $this->actingAs($admin)->postJson("/api/documents/{$verifiedDoc->id}/verify-physical", [
+            'lokasi_rak'           => 'Rak A',
+            'nomor_box'            => 'Box 01',
+            'kondisi_berkas_fisik' => 'Asli & Cap Basah Lengkap',
+            'cek_tanda_tangan'     => true,
+            'cek_lampiran_lengkap' => true,
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('tidak memerlukan verifikasi fisik awal', $response->json('message'));
+    }
+
+    public function test_physical_verification_flow_transitions_status(): void
+    {
+        $admin = User::where('username', 'admin')->first();
+
+        // 1. Create a pending document
+        $pendingDoc = Document::create([
+            'user_id'      => $admin->id,
+            'nomor_pb'     => 'PB/BMS-WH/2026/11/777',
+            'tanggal_pb'   => '2026-11-02',
+            'bagian'       => 'Warehouse & Logistik',
+            'nama_pemohon' => 'Bambang Irawan',
+            'status'       => 'Menunggu Arsip Fisik',
+            'lokasi_rak'   => 'Rak A',
+            'nomor_box'    => 'Box 01',
+        ]);
+
+        $this->assertEquals('Menunggu Arsip Fisik', $pendingDoc->status);
+        $this->assertNull($pendingDoc->verified_at);
+
+        // 2. Perform physical verification
+        $response = $this->actingAs($admin)->postJson("/api/documents/{$pendingDoc->id}/verify-physical", [
+            'lokasi_rak'           => 'Rak A',
+            'nomor_box'            => 'Box 01',
+            'kondisi_berkas_fisik' => 'Asli & Cap Basah Lengkap',
+            'cek_tanda_tangan'     => true,
+            'cek_lampiran_lengkap' => true,
+            'catatan_verifikasi'   => 'Cap basah resmi dan tanda tangan lengkap diverifikasi',
+        ]);
+
+        $response->assertStatus(200);
+
+        // 3. Verify status transition and accountability
+        $pendingDoc->refresh();
+        $this->assertEquals('Terverifikasi & Diarsipkan', $pendingDoc->status);
+        $this->assertNotNull($pendingDoc->verified_at);
+        $this->assertEquals($admin->id, $pendingDoc->verified_by_user_id);
+        $this->assertEquals('Asli & Cap Basah Lengkap', $pendingDoc->kondisi_berkas_fisik);
+        $this->assertStringContainsString('Cap basah resmi', $pendingDoc->catatan_verifikasi);
+    }
 }

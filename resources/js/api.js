@@ -38,6 +38,7 @@ export const documentApi = {
   }),
   update: (id, data) => api.put(`/documents/${id}`, data),
   delete: (id) => api.delete(`/documents/${id}`),
+  verifyPhysical: (id, data) => api.post(`/documents/${id}/verify-physical`, data),
   exportUrl: '/api/documents/export',
 };
 

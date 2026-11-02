@@ -6,6 +6,7 @@ import ToastContainer from './components/ToastContainer';
 import QuickPreviewModal from './components/QuickPreviewModal';
 import ReturnModal from './components/ReturnModal';
 import BorrowModal from './components/BorrowModal';
+import PhysicalVerificationModal from './components/PhysicalVerificationModal';
 
 // Pages
 import LoginPage from './pages/LoginPage';
@@ -37,6 +38,7 @@ export default function App() {
   const [previewFile, setPreviewFile] = useState(null);
   const [returnModalData, setReturnModalData] = useState(null);
   const [borrowModalDoc, setBorrowModalDoc] = useState(null);
+  const [verificationModalDoc, setVerificationModalDoc] = useState(null);
   const [isSubmittingReturn, setIsSubmittingReturn] = useState(false);
 
   const addToast = (message, type = 'info') => {
@@ -168,6 +170,7 @@ export default function App() {
           <DocumentsPage
             onNavigate={navigate}
             onToast={addToast}
+            onOpenVerificationModal={(doc) => setVerificationModalDoc(doc)}
           />
         );
       case 'document-create':
@@ -194,6 +197,7 @@ export default function App() {
             onOpenPreview={setPreviewFile}
             onOpenReturnModal={(id, nomor, borrower) => setReturnModalData({ id, nomor_pb: nomor, nama_peminjam: borrower })}
             onOpenBorrowModal={setBorrowModalDoc}
+            onOpenVerificationModal={(doc) => setVerificationModalDoc(doc)}
           />
         );
       case 'racks':
@@ -280,6 +284,20 @@ export default function App() {
           document={borrowModalDoc.id ? borrowModalDoc : null}
           onClose={() => setBorrowModalDoc(null)}
           onSuccess={() => {
+            fetchCounts();
+            if (currentPage === 'document-detail') {
+              setSelectedDocId((prev) => prev);
+            }
+          }}
+          onToast={addToast}
+        />
+      )}
+
+      {verificationModalDoc && (
+        <PhysicalVerificationModal
+          document={verificationModalDoc}
+          onClose={() => setVerificationModalDoc(null)}
+          onSuccess={(updated) => {
             fetchCounts();
             if (currentPage === 'document-detail') {
               setSelectedDocId((prev) => prev);

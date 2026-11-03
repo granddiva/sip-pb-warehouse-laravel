@@ -7,6 +7,7 @@ import QuickPreviewModal from './components/QuickPreviewModal';
 import ReturnModal from './components/ReturnModal';
 import BorrowModal from './components/BorrowModal';
 import PhysicalVerificationModal from './components/PhysicalVerificationModal';
+import QuickScanModal from './components/QuickScanModal';
 
 // Pages
 import LoginPage from './pages/LoginPage';
@@ -40,6 +41,7 @@ export default function App() {
   const [borrowModalDoc, setBorrowModalDoc] = useState(null);
   const [verificationModalDoc, setVerificationModalDoc] = useState(null);
   const [isSubmittingReturn, setIsSubmittingReturn] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const addToast = (message, type = 'info') => {
     const id = Date.now() + Math.random();
@@ -87,6 +89,16 @@ export default function App() {
 
   useEffect(() => {
     checkAuth();
+
+    // Global shortcut Ctrl+K to toggle Smart Scanner
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsScannerOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const handleLogout = async () => {
@@ -259,6 +271,7 @@ export default function App() {
           currentPage={currentPage}
           user={user}
           onNavigate={navigate}
+          onOpenScanner={() => setIsScannerOpen(true)}
         />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
@@ -306,6 +319,31 @@ export default function App() {
           onToast={addToast}
         />
       )}
+
+      {/* Global Barcode & QR Code Smart Scanner Modal */}
+      <QuickScanModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onToast={addToast}
+        onOpenVerification={(doc) => setVerificationModalDoc(doc)}
+        onOpenBorrow={(doc) => {
+          navigate('borrowings');
+          setBorrowModalDoc(doc);
+        }}
+        onOpenReturn={(activeBorrowing) => {
+          setReturnModalData({
+            id: activeBorrowing.id,
+            nomor_pb: activeBorrowing.nomor_pb || 'Dokumen Terpinjam',
+            nama_peminjam: activeBorrowing.nama_peminjam,
+          });
+        }}
+        onOpenBox={(box) => {
+          navigate('racks');
+        }}
+        onNavigateDetail={(id) => {
+          navigate('document-detail', id);
+        }}
+      />
     </div>
   );
 }

@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\QrCodeController;
 use App\Http\Controllers\Api\RackController;
+use App\Http\Controllers\Api\ScannerController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['web'])->group(function () {
@@ -24,6 +25,7 @@ Route::middleware(['web'])->group(function () {
         // Documents
         Route::get('/documents/export', [DocumentController::class, 'export']);
         Route::get('/documents/generate-number', [DocumentController::class, 'generateNumber']);
+        Route::post('/documents/relocate', [DocumentController::class, 'relocate']);
         Route::get('/documents', [DocumentController::class, 'index']);
         Route::get('/documents/{document}', [DocumentController::class, 'show']);
         Route::post('/documents', [DocumentController::class, 'store']);
@@ -47,10 +49,11 @@ Route::middleware(['web'])->group(function () {
         Route::post('/borrowings', [BorrowingController::class, 'store']);
         Route::post('/borrowings/{borrowing}/return', [BorrowingController::class, 'returnDoc']);
 
-        // QR Codes
+        // QR Codes & Scanner
         Route::get('/qrcodes/document/{document}', [QrCodeController::class, 'document']);
         Route::get('/qrcodes/box/{box}', [QrCodeController::class, 'box']);
         Route::get('/qrcodes/batch', [QrCodeController::class, 'batch']);
+        Route::get('/scan/resolve', [ScannerController::class, 'resolve']);
 
         // Activity Logs
         Route::get('/activity-logs', [ActivityLogController::class, 'index']);

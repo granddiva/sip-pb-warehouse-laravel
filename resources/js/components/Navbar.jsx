@@ -1,7 +1,7 @@
 import React from 'react';
-import { Menu, Plus, Bell, ChevronRight, User } from 'lucide-react';
+import { Menu, Plus, Bell, ChevronRight, User, Camera } from 'lucide-react';
 
-export default function Navbar({ onOpenMobileMenu, currentPage, user, onNavigate }) {
+export default function Navbar({ onOpenMobileMenu, currentPage, user, onNavigate, onOpenScanner }) {
   const pageTitles = {
     'dashboard': 'Dashboard & Analitik',
     'documents': 'Daftar Dokumen Permintaan Barang (PB)',
@@ -35,7 +35,17 @@ export default function Navbar({ onOpenMobileMenu, currentPage, user, onNavigate
       </div>
 
       {/* Right: Action CTA & User Pill */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
+        <button
+          onClick={onOpenScanner}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition-all hover:border-sky-300"
+          title="Scan Barcode / QR Code (Ctrl + K)"
+        >
+          <Camera className="w-3.5 h-3.5 text-sky-600" />
+          <span className="hidden sm:inline">Scan QR</span>
+          <kbd className="hidden lg:inline text-[9px] bg-slate-100 text-slate-500 px-1 py-0.5 rounded font-mono border">Ctrl+K</kbd>
+        </button>
+
         {currentPage !== 'document-create' && (
           <button
             onClick={() => onNavigate('document-create')}

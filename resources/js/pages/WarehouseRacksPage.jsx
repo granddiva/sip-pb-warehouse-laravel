@@ -31,8 +31,10 @@ import {
   QrCode,
   Tag,
   Check,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { rackApi } from '../api';
+import RelocateDocumentsModal from '../components/RelocateDocumentsModal';
 
 export default function WarehouseRacksPage({ onNavigate, onToast }) {
   const [racks, setRacks] = useState([]);
@@ -51,6 +53,9 @@ export default function WarehouseRacksPage({ onNavigate, onToast }) {
   const [drawerDocs, setDrawerDocs] = useState([]);
   const [drawerLoading, setDrawerLoading] = useState(false);
   const [drawerSearch, setDrawerSearch] = useState('');
+
+  // Relocation modal state
+  const [relocateDoc, setRelocateDoc] = useState(null);
 
   const fetchRacks = async () => {
     try {
@@ -1173,16 +1178,27 @@ export default function WarehouseRacksPage({ onNavigate, onToast }) {
                             <span className="text-[10px] text-slate-400 font-mono">
                               {doc.tanggal_indonesia}
                             </span>
-                            <button
-                              onClick={() => {
-                                closeDrawer();
-                                onNavigate('document-detail', doc.id);
-                              }}
-                              className="font-bold text-sky-600 hover:text-sky-700 group-hover:underline flex items-center gap-1"
-                            >
-                              <span>Buka Dokumen PB</span>
-                              <ExternalLink className="w-3 h-3" />
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setRelocateDoc(doc)}
+                                className="text-[11px] font-bold text-amber-700 hover:text-amber-800 hover:bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 transition-all flex items-center gap-1"
+                                title="Pindahkan berkas ini ke box atau lemari rak lain"
+                              >
+                                <ArrowRightLeft className="w-3 h-3" />
+                                <span>Relokasi</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  closeDrawer();
+                                  onNavigate('document-detail', doc.id);
+                                }}
+                                className="font-bold text-sky-600 hover:text-sky-700 group-hover:underline flex items-center gap-1 text-xs"
+                              >
+                                <span>Buka PB</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))
@@ -1208,6 +1224,20 @@ export default function WarehouseRacksPage({ onNavigate, onToast }) {
           </div>
         </div>
       )}
+      {/* Modal Relokasi Dokumen Fisik */}
+      <RelocateDocumentsModal
+        isOpen={!!relocateDoc}
+        documents={relocateDoc}
+        racks={racks}
+        onClose={() => setRelocateDoc(null)}
+        onToast={onToast}
+        onSuccess={() => {
+          fetchRacks();
+          if (drawerBox) {
+            openBoxDrawer(drawerBox);
+          }
+        }}
+      />
     </div>
   );
 }

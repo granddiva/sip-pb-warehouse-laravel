@@ -29,13 +29,14 @@ class Box extends Model
 
     public function getPersentaseKapasitasAttribute(): int
     {
-        $max = $this->kapasitas_maksimal ?: 20;
+        $max = $this->kapasitas_maksimal ?? 20;
+        if ($max <= 0) return 100;
         return (int) min(100, round(($this->total_dokumen / $max) * 100));
     }
 
     public function getSisaKapasitasAttribute(): int
     {
-        $max = $this->kapasitas_maksimal ?: 20;
+        $max = $this->kapasitas_maksimal ?? 20;
         return max(0, $max - $this->total_dokumen);
     }
 

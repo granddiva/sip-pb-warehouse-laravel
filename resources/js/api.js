@@ -39,6 +39,7 @@ export const documentApi = {
   update: (id, data) => api.put(`/documents/${id}`, data),
   delete: (id) => api.delete(`/documents/${id}`),
   verifyPhysical: (id, data) => api.post(`/documents/${id}/verify-physical`, data),
+  relocate: (data) => api.post('/documents/relocate', data),
   exportUrl: '/api/documents/export',
 };
 
@@ -67,6 +68,10 @@ export const qrCodeApi = {
   getDocument: (id) => api.get(`/qrcodes/document/${id}`),
   getBox: (id) => api.get(`/qrcodes/box/${id}`),
   getBatch: (type = 'boxes') => api.get('/qrcodes/batch', { params: { type } }),
+};
+
+export const scannerApi = {
+  resolve: (code) => api.get('/scan/resolve', { params: { code } }),
 };
 
 export const activityLogApi = {

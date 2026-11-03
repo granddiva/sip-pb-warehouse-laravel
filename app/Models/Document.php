@@ -52,6 +52,11 @@ class Document extends Model
         return $this->hasMany(BorrowingLog::class)->latest();
     }
 
+    public function borrowings(): HasMany
+    {
+        return $this->hasMany(BorrowingLog::class);
+    }
+
     public function activeBorrowing(): HasOne
     {
         return $this->hasOne(BorrowingLog::class)->where('status_pinjam', 'Dipinjam')->latestOfMany();

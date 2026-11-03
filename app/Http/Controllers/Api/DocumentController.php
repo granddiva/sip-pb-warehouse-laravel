@@ -10,6 +10,7 @@ use App\Models\Rack;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class DocumentController extends Controller
@@ -549,6 +550,80 @@ class DocumentController extends Controller
             'success'  => true,
             'document' => $document->fresh(['box.rack', 'verifiedByUser']),
             'message'  => "Dokumen PB {$document->nomor_pb} berhasil diverifikasi dan resmi disimpan pada {$validated['lokasi_rak']} - {$validated['nomor_box']}.",
+        ]);
+    }
+
+    /**
+     * Relocate / Mutate physical documents from one box/rack to another.
+     */
+    public function relocate(Request $request)
+    {
+        $validated = $request->validate([
+            'document_ids'   => 'required|array|min:1',
+            'document_ids.*' => 'required|integer|exists:documents,id',
+            'target_rack_id' => 'required|integer|exists:racks,id',
+            'target_box_id'  => 'required|integer|exists:boxes,id',
+            'alasan'         => 'required|string|min:3|max:500',
+        ]);
+
+        $targetRack = Rack::findOrFail($validated['target_rack_id']);
+        $targetBox = Box::where('id', $validated['target_box_id'])
+            ->where('rack_id', $targetRack->id)
+            ->firstOrFail();
+
+        if ($targetBox->status === 'Penuh (Terkunci)') {
+            return response()->json([
+                'success' => false,
+                'message' => "Box {$targetBox->nomor_box} pada {$targetRack->kode_rak} sedang dikunci/penuh secara fisik. Silakan pilih box lain.",
+            ], 422);
+        }
+
+        $documents = Document::whereIn('id', $validated['document_ids'])->get();
+
+        // Guard: Document cannot be borrowed
+        foreach ($documents as $doc) {
+            if (str_contains($doc->status, 'Dipinjam')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Dokumen {$doc->nomor_pb} sedang dipinjam keluar gudang sehingga tidak dapat direlokasi fisik.",
+                ], 422);
+            }
+        }
+
+        // Available capacity check (don't count documents already in the target box)
+        $newCount = $documents->where('box_id', '!=', $targetBox->id)->count();
+        if ($newCount > $targetBox->sisa_kapasitas) {
+            return response()->json([
+                'success' => false,
+                'message' => "Kapasitas {$targetBox->nomor_box} tidak mencukupi. Sisa slot: {$targetBox->sisa_kapasitas}, jumlah berkas yang dipindahkan: {$newCount}.",
+            ], 422);
+        }
+
+        $user = Auth::user();
+
+        DB::transaction(function () use ($documents, $targetRack, $targetBox, $validated, $user) {
+            foreach ($documents as $doc) {
+                $originLoc = "{$doc->lokasi_rak_formatted} - {$doc->nomor_box_formatted}";
+                $relocateNote = "[Relokasi " . now()->format('d/m/Y') . "]: Dari {$originLoc} ke {$targetRack->kode_rak} - {$targetBox->nomor_box}. Alasan: {$validated['alasan']}";
+
+                $doc->update([
+                    'box_id'        => $targetBox->id,
+                    'lokasi_rak'    => $targetRack->kode_rak,
+                    'nomor_box'     => $targetBox->nomor_box,
+                    'catatan_arsip' => $doc->catatan_arsip ? $doc->catatan_arsip . "\n" . $relocateNote : $relocateNote,
+                ]);
+            }
+
+            ActivityLog::log(
+                'document_relocate',
+                "Relokasi {$documents->count()} dokumen ke {$targetRack->kode_rak} - {$targetBox->nomor_box} oleh " . ($user->name ?? 'Admin') . ". Alasan: {$validated['alasan']}"
+            );
+        });
+
+        return response()->json([
+            'success'    => true,
+            'message'    => "Berhasil memindahkan {$documents->count()} dokumen ke {$targetRack->kode_rak} - {$targetBox->nomor_box}.",
+            'target_box' => $targetBox->fresh(['rack', 'documents']),
         ]);
     }
 }

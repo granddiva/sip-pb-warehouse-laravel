@@ -36,7 +36,7 @@ import {
 import { rackApi } from '../api';
 import RelocateDocumentsModal from '../components/RelocateDocumentsModal';
 
-export default function WarehouseRacksPage({ onNavigate, onToast }) {
+export default function WarehouseRacksPage({ onNavigate, onToast, refreshKey, onRefresh }) {
   const [racks, setRacks] = useState([]);
   const [selectedRackId, setSelectedRackId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -75,7 +75,10 @@ export default function WarehouseRacksPage({ onNavigate, onToast }) {
 
   useEffect(() => {
     fetchRacks();
-  }, []);
+    if (drawerBox) {
+      openBoxDrawer(drawerBox);
+    }
+  }, [refreshKey]);
 
   // Keyboard shortcut: Escape to close drawer
   useEffect(() => {
@@ -116,6 +119,7 @@ export default function WarehouseRacksPage({ onNavigate, onToast }) {
       onToast(res.data.message || 'Status box berhasil diubah.', 'success');
       setDrawerBox({ ...drawerBox, status: res.data.status });
       fetchRacks();
+      if (onRefresh) onRefresh();
     } catch (err) {
       console.error(err);
       onToast('Gagal mengubah status box.', 'error');
@@ -1236,6 +1240,7 @@ export default function WarehouseRacksPage({ onNavigate, onToast }) {
           if (drawerBox) {
             openBoxDrawer(drawerBox);
           }
+          if (onRefresh) onRefresh();
         }}
       />
     </div>

@@ -32,6 +32,14 @@ export default function App() {
   // Global counts for sidebar badges
   const [counts, setCounts] = useState({ documents: 0, borrowings: 0, overdue: 0 });
 
+  // Global Auto-Refresh Key to trigger reactive live re-fetch across all pages
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const triggerRefresh = () => {
+    setRefreshKey((prev) => prev + 1);
+    fetchCounts();
+  };
+
   // Global Toasts
   const [toasts, setToasts] = useState([]);
 
@@ -126,11 +134,7 @@ export default function App() {
       const res = await borrowingApi.returnDoc(returnModalData.id, formData);
       addToast(res.data.message || 'Dokumen berhasil dikembalikan.', 'success');
       setReturnModalData(null);
-      fetchCounts();
-      // Reload current view if on details or borrowings
-      if (currentPage === 'document-detail') {
-        setSelectedDocId((prev) => prev); // trigger
-      }
+      triggerRefresh();
     } catch (err) {
       const msg = err.response?.data?.message || 'Gagal mengembalikan berkas.';
       addToast(msg, 'error');
@@ -172,6 +176,8 @@ export default function App() {
       case 'dashboard':
         return (
           <DashboardPage
+            refreshKey={refreshKey}
+            onRefresh={triggerRefresh}
             onNavigate={navigate}
             onToast={addToast}
             onOpenReturnModal={(id, nomor, borrower) => setReturnModalData({ id, nomor_pb: nomor, nama_peminjam: borrower })}
@@ -180,6 +186,8 @@ export default function App() {
       case 'documents':
         return (
           <DocumentsPage
+            refreshKey={refreshKey}
+            onRefresh={triggerRefresh}
             onNavigate={navigate}
             onToast={addToast}
             onOpenVerificationModal={(doc) => setVerificationModalDoc(doc)}
@@ -188,6 +196,7 @@ export default function App() {
       case 'document-create':
         return (
           <DocumentFormPage
+            onRefresh={triggerRefresh}
             onNavigate={navigate}
             onToast={addToast}
           />
@@ -196,6 +205,7 @@ export default function App() {
         return (
           <DocumentFormPage
             documentId={selectedDocId}
+            onRefresh={triggerRefresh}
             onNavigate={navigate}
             onToast={addToast}
           />
@@ -204,6 +214,8 @@ export default function App() {
         return (
           <DocumentDetailPage
             documentId={selectedDocId}
+            refreshKey={refreshKey}
+            onRefresh={triggerRefresh}
             onNavigate={navigate}
             onToast={addToast}
             onOpenPreview={setPreviewFile}
@@ -215,6 +227,8 @@ export default function App() {
       case 'racks':
         return (
           <WarehouseRacksPage
+            refreshKey={refreshKey}
+            onRefresh={triggerRefresh}
             onNavigate={navigate}
             onToast={addToast}
           />
@@ -222,6 +236,8 @@ export default function App() {
       case 'borrowings':
         return (
           <BorrowingsPage
+            refreshKey={refreshKey}
+            onRefresh={triggerRefresh}
             onNavigate={navigate}
             onToast={addToast}
             onOpenReturnModal={(id, nomor, borrower) => setReturnModalData({ id, nomor_pb: nomor, nama_peminjam: borrower })}
@@ -231,6 +247,8 @@ export default function App() {
       case 'qrcodes':
         return (
           <QrCodePrintPage
+            refreshKey={refreshKey}
+            onRefresh={triggerRefresh}
             onNavigate={navigate}
             onToast={addToast}
           />
@@ -238,12 +256,16 @@ export default function App() {
       case 'activity-logs':
         return (
           <AuditTrailPage
+            refreshKey={refreshKey}
+            onRefresh={triggerRefresh}
             onToast={addToast}
           />
         );
       default:
         return (
           <DashboardPage
+            refreshKey={refreshKey}
+            onRefresh={triggerRefresh}
             onNavigate={navigate}
             onToast={addToast}
           />
@@ -297,10 +319,7 @@ export default function App() {
           document={borrowModalDoc.id ? borrowModalDoc : null}
           onClose={() => setBorrowModalDoc(null)}
           onSuccess={() => {
-            fetchCounts();
-            if (currentPage === 'document-detail') {
-              setSelectedDocId((prev) => prev);
-            }
+            triggerRefresh();
           }}
           onToast={addToast}
         />
@@ -311,10 +330,7 @@ export default function App() {
           document={verificationModalDoc}
           onClose={() => setVerificationModalDoc(null)}
           onSuccess={(updated) => {
-            fetchCounts();
-            if (currentPage === 'document-detail') {
-              setSelectedDocId((prev) => prev);
-            }
+            triggerRefresh();
           }}
           onToast={addToast}
         />

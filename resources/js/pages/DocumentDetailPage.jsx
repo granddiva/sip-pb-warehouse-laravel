@@ -27,6 +27,8 @@ export default function DocumentDetailPage({
   onOpenReturnModal,
   onOpenBorrowModal,
   onOpenVerificationModal,
+  refreshKey,
+  onRefresh,
 }) {
   const [doc, setDoc] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -54,7 +56,7 @@ export default function DocumentDetailPage({
     if (documentId) {
       fetchDocument();
     }
-  }, [documentId]);
+  }, [documentId, refreshKey]);
 
   const handleUploadAttachment = async (e) => {
     e.preventDefault();
@@ -74,6 +76,7 @@ export default function DocumentDetailPage({
       setShowUploadForm(false);
       setAttachmentFile(null);
       fetchDocument();
+      if (onRefresh) onRefresh();
     } catch (err) {
       const msg = err.response?.data?.message || 'Gagal mengunggah lampiran.';
       onToast(msg, 'error');
@@ -89,6 +92,7 @@ export default function DocumentDetailPage({
       const res = await attachmentApi.delete(attachmentId);
       onToast(res.data.message || 'Lampiran berhasil dihapus.', 'success');
       fetchDocument();
+      if (onRefresh) onRefresh();
     } catch (err) {
       const msg = err.response?.data?.message || 'Gagal menghapus lampiran.';
       onToast(msg, 'error');

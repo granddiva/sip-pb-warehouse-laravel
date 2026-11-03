@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, User, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { activityLogApi } from '../api';
 
-export default function AuditTrailPage({ onToast }) {
+export default function AuditTrailPage({ onToast, refreshKey }) {
   const [logs, setLogs] = useState([]);
   const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
   const [page, setPage] = useState(1);
@@ -28,7 +28,7 @@ export default function AuditTrailPage({ onToast }) {
 
   useEffect(() => {
     fetchLogs();
-  }, [page]);
+  }, [page, refreshKey]);
 
   const getActivityBadge = (type) => {
     switch (type) {

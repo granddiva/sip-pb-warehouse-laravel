@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { dashboardApi } from '../api';
 
-export default function DashboardPage({ onNavigate, onToast, onOpenReturnModal }) {
+export default function DashboardPage({ onNavigate, onToast, onOpenReturnModal, refreshKey }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -33,7 +33,7 @@ export default function DashboardPage({ onNavigate, onToast, onOpenReturnModal }
 
   useEffect(() => {
     fetchDashboard();
-  }, []);
+  }, [refreshKey]);
 
   if (loading) {
     return (

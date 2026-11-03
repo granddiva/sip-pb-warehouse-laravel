@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { documentApi, rackApi } from '../api';
 
-export default function DocumentFormPage({ documentId, onNavigate, onToast }) {
+export default function DocumentFormPage({ documentId, onNavigate, onToast, onRefresh }) {
   const isEdit = Boolean(documentId);
 
   const [loading, setLoading] = useState(false);
@@ -360,6 +360,7 @@ export default function DocumentFormPage({ documentId, onNavigate, onToast }) {
             : (res.data.message || 'Dokumen berhasil diperbarui.'),
           'success'
         );
+        if (onRefresh) onRefresh();
         onNavigate('document-detail', documentId);
       } else {
         const formData = new FormData();
@@ -397,6 +398,7 @@ export default function DocumentFormPage({ documentId, onNavigate, onToast }) {
 
         const res = await documentApi.create(formData);
         onToast(res.data.message || 'Dokumen PB berhasil diarsipkan ke gudang.', 'success');
+        if (onRefresh) onRefresh();
         onNavigate('documents');
       }
     } catch (err) {

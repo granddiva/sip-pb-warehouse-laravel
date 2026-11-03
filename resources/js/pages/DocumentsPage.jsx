@@ -18,10 +18,11 @@ import {
   ShieldCheck,
   AlertTriangle,
   RotateCcw,
+  X,
 } from 'lucide-react';
 import { documentApi } from '../api';
 
-export default function DocumentsPage({ onNavigate, onToast, onOpenVerificationModal }) {
+export default function DocumentsPage({ onNavigate, onToast, onOpenVerificationModal, refreshKey }) {
   const [documents, setDocuments] = useState([]);
   const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
   const [loading, setLoading] = useState(true);
@@ -77,13 +78,13 @@ export default function DocumentsPage({ onNavigate, onToast, onOpenVerificationM
     }
   };
 
-  // Debounced search
+  // Debounced live search & reactive auto-refresh
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchDocuments();
-    }, 300);
+    }, 200);
     return () => clearTimeout(timer);
-  }, [search, quickFilter, statusFilter, bagianFilter, page]);
+  }, [search, quickFilter, statusFilter, bagianFilter, page, refreshKey]);
 
   const handleDelete = async (id, nomorPb, status) => {
     if (status.includes('Dipinjam')) {
@@ -172,7 +173,7 @@ export default function DocumentsPage({ onNavigate, onToast, onOpenVerificationM
 
         {/* Search & Dropdown Filters Grid */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-1">
-          {/* Search Box */}
+          {/* Search Box with Real-Time Auto-Refresh Feedback */}
           <div className="md:col-span-6 relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
@@ -180,8 +181,22 @@ export default function DocumentsPage({ onNavigate, onToast, onOpenVerificationM
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               placeholder="Cari nomor PB, nama pemohon, spesifikasi item barang..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-sky-500 focus:outline-none"
+              className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-sky-500 focus:outline-none"
             />
+            {loading ? (
+              <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                <div className="w-3.5 h-3.5 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : search ? (
+              <button
+                type="button"
+                onClick={() => { setSearch(''); setPage(1); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-md"
+                title="Hapus pencarian"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            ) : null}
           </div>
 
           {/* Bagian Filter */}

@@ -82,6 +82,28 @@ export default function QuickScanModal({
     }
   }, [activeTab, scanResult]);
 
+  // Reactive Auto-Refresh & Auto-Scan when inputting via Barcode Gun or Manual Typing
+  useEffect(() => {
+    if (activeTab !== 'gun' || !manualCode.trim() || loading || scanResult) return;
+
+    const trimmed = manualCode.trim();
+
+    // Instant trigger if it matches full barcode format (e.g. PB/BMS-WH/2026/09/001 or Box 01)
+    const isFullPbPattern = /^PB\/[A-Z0-9-]+\/\d{4}\/\d{2}\/\d{3}$/i.test(trimmed);
+    const isFullBoxPattern = /^(Box\s+\d+|Rak\s+[A-Z]\s*-\s*Box\s+\d+)$/i.test(trimmed);
+
+    const delay = isFullPbPattern || isFullBoxPattern ? 80 : 400;
+
+    const timer = setTimeout(() => {
+      if (trimmed.length >= 3) {
+        handleCodeScanned(trimmed);
+        setManualCode('');
+      }
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [manualCode, activeTab, loading, scanResult]);
+
   // Camera initialization
   useEffect(() => {
     let isMounted = true;
@@ -556,8 +578,24 @@ export default function QuickScanModal({
                     value={manualCode}
                     onChange={(e) => setManualCode(e.target.value)}
                     placeholder="Scan atau ketik: PB/BMS-WH/2026/09/001 atau Box 01..."
-                    className="w-full pl-10 pr-4 py-3 rounded-2xl border-2 border-sky-500 text-xs font-mono font-bold focus:ring-4 focus:ring-sky-500/20 focus:outline-none bg-white shadow-sm"
+                    className="w-full pl-10 pr-10 py-3 rounded-2xl border-2 border-sky-500 text-xs font-mono font-bold focus:ring-4 focus:ring-sky-500/20 focus:outline-none bg-white shadow-sm"
                   />
+                  {manualCode && (
+                    <button
+                      type="button"
+                      onClick={() => setManualCode('')}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
+                  <span className="inline-flex items-center gap-1.5 font-bold text-emerald-600">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                    Auto-Refresh Aktif: Langsung scan tanpa perlu klik tombol
+                  </span>
                 </div>
 
                 <button

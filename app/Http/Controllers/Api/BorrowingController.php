@@ -119,6 +119,8 @@ class BorrowingController extends Controller
             ], 422);
         }
 
+        $oldStatus = $document->status;
+
         $borrowing = BorrowingLog::create([
             'document_id'         => $document->id,
             'handled_by'          => auth()->id(),
@@ -137,7 +139,22 @@ class BorrowingController extends Controller
 
         ActivityLog::log(
             'borrow',
-            "Memproses peminjaman dokumen fisik {$document->nomor_pb} oleh {$borrowing->nama_peminjam} ({$borrowing->departemen_peminjam})"
+            "Memproses peminjaman dokumen fisik {$document->nomor_pb} oleh {$borrowing->nama_peminjam} ({$borrowing->departemen_peminjam})",
+            $document,
+            [
+                'borrowing_id'        => $borrowing->id,
+                'nama_peminjam'       => $borrowing->nama_peminjam,
+                'departemen_peminjam' => $borrowing->departemen_peminjam,
+                'keperluan'           => $borrowing->keperluan,
+                'tanggal_pinjam'      => $borrowing->tanggal_pinjam->format('Y-m-d'),
+                'batas_kembali'       => $borrowing->batas_kembali->format('Y-m-d'),
+                'old_values'          => [
+                    'status' => $oldStatus,
+                ],
+                'new_values'          => [
+                    'status' => 'Dokumen Dipinjam',
+                ],
+            ]
         );
 
         return response()->json([
@@ -166,6 +183,9 @@ class BorrowingController extends Controller
             $auditNotes .= "\n• Keterangan Petugas: " . $validated['catatan_kembali'];
         }
 
+        $oldDocStatus = $borrowing->document?->status;
+        $oldBorrowingStatus = $borrowing->status_pinjam;
+
         $borrowing->update([
             'status_pinjam'       => 'Dikembalikan',
             'tanggal_kembali'     => $validated['tanggal_kembali'],
@@ -185,7 +205,24 @@ class BorrowingController extends Controller
 
             ActivityLog::log(
                 $isProblematic ? 'return_warning' : 'return',
-                "Penerimaan dan verifikasi berkas {$borrowing->document->nomor_pb} dari {$borrowing->nama_peminjam}. Status fisik: {$validated['kondisi_fisik']}"
+                "Penerimaan dan verifikasi berkas {$borrowing->document->nomor_pb} dari {$borrowing->nama_peminjam}. Status fisik: {$validated['kondisi_fisik']}",
+                $borrowing->document,
+                [
+                    'borrowing_id' => $borrowing->id,
+                    'old_values'   => [
+                        'document_status'  => $oldDocStatus,
+                        'borrowing_status' => $oldBorrowingStatus,
+                    ],
+                    'new_values'   => [
+                        'document_status'  => 'Terverifikasi & Diarsipkan',
+                        'borrowing_status' => 'Dikembalikan',
+                        'kondisi_fisik'    => $validated['kondisi_fisik'],
+                    ],
+                    'checklist'    => [
+                        'is_form_pb_lengkap'  => $validated['is_form_pb_lengkap'],
+                        'is_lampiran_lengkap' => $validated['is_lampiran_lengkap'],
+                    ],
+                ]
             );
         }
 

@@ -33,7 +33,9 @@ Route::middleware(['web'])->group(function () {
         Route::put('/documents/{document}', [DocumentController::class, 'update']);
         Route::delete('/documents/{document}', [DocumentController::class, 'destroy']);
 
-        // Attachments
+        // Attachments (Secure Private Storage)
+        Route::get('/attachments/{attachment}/preview', [AttachmentController::class, 'preview'])->name('attachments.preview');
+        Route::get('/attachments/{attachment}/download', [AttachmentController::class, 'download'])->name('attachments.download');
         Route::post('/documents/{document}/attachments', [AttachmentController::class, 'store']);
         Route::delete('/attachments/{attachment}', [AttachmentController::class, 'destroy']);
 

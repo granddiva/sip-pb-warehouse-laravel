@@ -193,7 +193,7 @@ class DocumentController extends Controller
             $file        = $request->file('file_dokumen');
             $dokumenName = $file->getClientOriginalName();
             $dokumenSize = round($file->getSize() / 1024, 1) . ' KB';
-            $dokumenPath = $file->store('documents', 'public');
+            $dokumenPath = $file->store('documents', 'local');
             $mimeType    = $file->getMimeType();
         }
 
@@ -241,7 +241,7 @@ class DocumentController extends Controller
                     $attSize = $attBytes >= 1048576
                         ? round($attBytes / 1048576, 1) . ' MB'
                         : round($attBytes / 1024, 0) . ' KB';
-                    $attPath = $attFile->store('attachments', 'public');
+                    $attPath = $attFile->store('attachments', 'local');
                     $attJenis = $types[$idx] ?? 'Dokumen Pendukung';
 
                     $doc->attachments()->create([
@@ -271,7 +271,19 @@ class DocumentController extends Controller
             }
         }
 
-        ActivityLog::log('create', "Membuat dan mengarsipkan dokumen PB {$doc->nomor_pb} ({$doc->bagian})");
+        ActivityLog::log(
+            'create',
+            "Membuat dan mengarsipkan dokumen PB {$doc->nomor_pb} ({$doc->bagian})",
+            $doc,
+            [
+                'nomor_pb'     => $doc->nomor_pb,
+                'bagian'       => $doc->bagian,
+                'nama_pemohon' => $doc->nama_pemohon,
+                'status'       => $doc->status,
+                'lokasi_rak'   => $doc->lokasi_rak_formatted,
+                'nomor_box'    => $doc->nomor_box_formatted,
+            ]
+        );
 
         return response()->json([
             'success'  => true,
@@ -366,14 +378,25 @@ class DocumentController extends Controller
 
         // Delete all physical attachments
         foreach ($document->attachments as $att) {
+            if (Storage::disk('local')->exists($att->file_path)) {
+                Storage::disk('local')->delete($att->file_path);
+            }
             if (Storage::disk('public')->exists($att->file_path)) {
                 Storage::disk('public')->delete($att->file_path);
+            }
+        }
+        if ($document->dokumen_path) {
+            if (Storage::disk('local')->exists($document->dokumen_path)) {
+                Storage::disk('local')->delete($document->dokumen_path);
+            }
+            if (Storage::disk('public')->exists($document->dokumen_path)) {
+                Storage::disk('public')->delete($document->dokumen_path);
             }
         }
 
         $document->delete();
 
-        ActivityLog::log('delete', "Menghapus dokumen PB {$nomor} beserta berkas fisiknya");
+        ActivityLog::log('delete', "Menghapus dokumen PB {$nomor} beserta berkas fisiknya", null, ['nomor_pb' => $nomor]);
 
         return response()->json([
             'success' => true,
@@ -505,52 +528,109 @@ class DocumentController extends Controller
         }
 
         $validated = $request->validate([
-            'lokasi_rak'           => 'required|string',
-            'nomor_box'            => 'required|string',
+            'box_id'               => 'nullable|integer|exists:boxes,id',
+            'lokasi_rak'           => 'required_without:box_id|nullable|string',
+            'nomor_box'            => 'required_without:box_id|nullable|string',
             'kondisi_berkas_fisik' => 'required|string|in:Asli & Cap Basah Lengkap,Salinan Resmi Terlegalisir,Sebagian Dokumen Asli',
             'cek_tanda_tangan'     => 'required|boolean|accepted',
             'cek_lampiran_lengkap' => 'required|boolean',
             'catatan_verifikasi'   => 'nullable|string|max:1000',
         ]);
 
-        // Resolve Box and verify it's not locked
-        $box = Box::whereHas('rack', fn($q) => $q->where('kode_rak', $validated['lokasi_rak']))
-            ->where('nomor_box', $validated['nomor_box'])
-            ->first();
-
-        if ($box && $box->status === 'Penuh (Terkunci)') {
-            return response()->json([
-                'success' => false,
-                'message' => "Box {$box->nomor_box} pada {$validated['lokasi_rak']} sedang dikunci/penuh. Silakan pilih box lain.",
-            ], 422);
-        }
-
         $user = Auth::user();
 
-        $document->update([
-            'status'               => 'Terverifikasi & Diarsipkan',
-            'lokasi_rak'           => $validated['lokasi_rak'],
-            'nomor_box'            => $validated['nomor_box'],
-            'box_id'               => $box?->id,
-            'verified_at'          => now(),
-            'verified_by_user_id'  => $user?->id,
-            'kondisi_berkas_fisik' => $validated['kondisi_berkas_fisik'],
-            'catatan_verifikasi'   => $validated['catatan_verifikasi'] ?? null,
-            'catatan_arsip'        => $document->catatan_arsip
-                ? $document->catatan_arsip . "\n[Verifikasi Fisik " . now()->format('d/m/Y') . " by " . ($user->name ?? 'Admin') . "]: " . ($validated['catatan_verifikasi'] ?? 'Sesuai fisik')
-                : $validated['catatan_verifikasi'],
-        ]);
+        return DB::transaction(function () use ($validated, $document, $user) {
+            // Pessimistic Locking (lockForUpdate) to prevent over-capacity race conditions
+            $boxQuery = Box::with('rack')->lockForUpdate();
 
-        ActivityLog::log(
-            'verify_physical',
-            "Verifikasi fisik dokumen PB {$document->nomor_pb} oleh " . ($user->name ?? 'Admin') . " dan pengarsipan pada {$validated['lokasi_rak']} - {$validated['nomor_box']} (Kondisi: {$validated['kondisi_berkas_fisik']})"
-        );
+            if (!empty($validated['box_id'])) {
+                $box = $boxQuery->find($validated['box_id']);
+            } else {
+                $box = $boxQuery->whereHas('rack', fn($q) => $q->where('kode_rak', $validated['lokasi_rak']))
+                    ->where('nomor_box', $validated['nomor_box'])
+                    ->first();
+            }
 
-        return response()->json([
-            'success'  => true,
-            'document' => $document->fresh(['box.rack', 'verifiedByUser']),
-            'message'  => "Dokumen PB {$document->nomor_pb} berhasil diverifikasi dan resmi disimpan pada {$validated['lokasi_rak']} - {$validated['nomor_box']}.",
-        ]);
+            if (!$box) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Box yang dipilih tidak ditemukan pada rak gudang.',
+                ], 422);
+            }
+
+            if ($box->status === 'Penuh (Terkunci)') {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Box {$box->nomor_box} pada {$box->rack->kode_rak} sedang dikunci/penuh. Silakan pilih box lain.",
+                ], 422);
+            }
+
+            if ($box->sisa_kapasitas <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Kapasitas Box {$box->nomor_box} sudah penuh (maksimal {$box->kapasitas_maksimal} map). Silakan pilih box lain.",
+                ], 422);
+            }
+
+            $oldValues = [
+                'status'     => $document->status,
+                'lokasi_rak' => $document->lokasi_rak_formatted,
+                'nomor_box'  => $document->nomor_box_formatted,
+                'box_id'     => $document->box_id,
+            ];
+
+            // Normalize location dynamically from Eloquent relation
+            $rackKode = $box->rack->kode_rak;
+            $boxNomor = $box->nomor_box;
+
+            $document->update([
+                'status'               => 'Terverifikasi & Diarsipkan',
+                'lokasi_rak'           => $rackKode,
+                'nomor_box'            => $boxNomor,
+                'box_id'               => $box->id,
+                'verified_at'          => now(),
+                'verified_by_user_id'  => $user?->id,
+                'kondisi_berkas_fisik' => $validated['kondisi_berkas_fisik'],
+                'catatan_verifikasi'   => $validated['catatan_verifikasi'] ?? null,
+                'catatan_arsip'        => $document->catatan_arsip
+                    ? $document->catatan_arsip . "\n[Verifikasi Fisik " . now()->format('d/m/Y') . " by " . ($user->name ?? 'Admin') . "]: " . ($validated['catatan_verifikasi'] ?? 'Sesuai fisik')
+                    : $validated['catatan_verifikasi'],
+            ]);
+
+            // Auto-lock box if capacity reaches maximum
+            if ($box->fresh()->total_dokumen >= $box->kapasitas_maksimal) {
+                $box->update(['status' => 'Penuh (Terkunci)']);
+            }
+
+            $newValues = [
+                'status'               => 'Terverifikasi & Diarsipkan',
+                'lokasi_rak'           => $rackKode,
+                'nomor_box'            => $boxNomor,
+                'box_id'               => $box->id,
+                'kondisi_berkas_fisik' => $validated['kondisi_berkas_fisik'],
+                'verified_by'          => $user?->name ?? 'Admin',
+            ];
+
+            ActivityLog::log(
+                'verify_physical',
+                "Verifikasi fisik dokumen PB {$document->nomor_pb} oleh " . ($user->name ?? 'Admin') . " dan pengarsipan pada {$rackKode} - {$boxNomor} (Kondisi: {$validated['kondisi_berkas_fisik']})",
+                $document,
+                [
+                    'old_values' => $oldValues,
+                    'new_values' => $newValues,
+                    'checklist'  => [
+                        'cek_tanda_tangan'     => $validated['cek_tanda_tangan'],
+                        'cek_lampiran_lengkap' => $validated['cek_lampiran_lengkap'],
+                    ],
+                ]
+            );
+
+            return response()->json([
+                'success'  => true,
+                'document' => $document->fresh(['box.rack', 'verifiedByUser']),
+                'message'  => "Dokumen PB {$document->nomor_pb} berhasil diverifikasi dan resmi disimpan pada {$rackKode} - {$boxNomor}.",
+            ]);
+        });
     }
 
     /**
@@ -566,43 +646,67 @@ class DocumentController extends Controller
             'alasan'         => 'required|string|min:3|max:500',
         ]);
 
-        $targetRack = Rack::findOrFail($validated['target_rack_id']);
-        $targetBox = Box::where('id', $validated['target_box_id'])
-            ->where('rack_id', $targetRack->id)
-            ->firstOrFail();
-
-        if ($targetBox->status === 'Penuh (Terkunci)') {
-            return response()->json([
-                'success' => false,
-                'message' => "Box {$targetBox->nomor_box} pada {$targetRack->kode_rak} sedang dikunci/penuh secara fisik. Silakan pilih box lain.",
-            ], 422);
-        }
-
-        $documents = Document::whereIn('id', $validated['document_ids'])->get();
-
-        // Guard: Document cannot be borrowed
-        foreach ($documents as $doc) {
-            if (str_contains($doc->status, 'Dipinjam')) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Dokumen {$doc->nomor_pb} sedang dipinjam keluar gudang sehingga tidak dapat direlokasi fisik.",
-                ], 422);
-            }
-        }
-
-        // Available capacity check (don't count documents already in the target box)
-        $newCount = $documents->where('box_id', '!=', $targetBox->id)->count();
-        if ($newCount > $targetBox->sisa_kapasitas) {
-            return response()->json([
-                'success' => false,
-                'message' => "Kapasitas {$targetBox->nomor_box} tidak mencukupi. Sisa slot: {$targetBox->sisa_kapasitas}, jumlah berkas yang dipindahkan: {$newCount}.",
-            ], 422);
-        }
-
         $user = Auth::user();
 
-        DB::transaction(function () use ($documents, $targetRack, $targetBox, $validated, $user) {
+        return DB::transaction(function () use ($validated, $user) {
+            $targetRack = Rack::findOrFail($validated['target_rack_id']);
+
+            // Pessimistic Locking on target box
+            $targetBox = Box::where('id', $validated['target_box_id'])
+                ->where('rack_id', $targetRack->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$targetBox) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Box tujuan tidak ditemukan pada rak yang dipilih.',
+                ], 422);
+            }
+
+            if ($targetBox->status === 'Penuh (Terkunci)') {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Box {$targetBox->nomor_box} pada {$targetRack->kode_rak} sedang dikunci/penuh secara fisik. Silakan pilih box lain.",
+                ], 422);
+            }
+
+            $documents = Document::whereIn('id', $validated['document_ids'])
+                ->lockForUpdate()
+                ->get();
+
+            // Guard: Document cannot be borrowed
             foreach ($documents as $doc) {
+                if (str_contains($doc->status, 'Dipinjam')) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Dokumen {$doc->nomor_pb} sedang dipinjam keluar gudang sehingga tidak dapat direlokasi fisik.",
+                    ], 422);
+                }
+            }
+
+            // Available capacity check (don't count documents already in the target box)
+            $newCount = $documents->where('box_id', '!=', $targetBox->id)->count();
+            if ($newCount > $targetBox->sisa_kapasitas) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Kapasitas {$targetBox->nomor_box} tidak mencukupi. Sisa slot: {$targetBox->sisa_kapasitas}, jumlah berkas yang dipindahkan: {$newCount}.",
+                ], 422);
+            }
+
+            foreach ($documents as $doc) {
+                $oldValues = [
+                    'box_id'     => $doc->box_id,
+                    'lokasi_rak' => $doc->lokasi_rak_formatted,
+                    'nomor_box'  => $doc->nomor_box_formatted,
+                ];
+
+                $newValues = [
+                    'box_id'     => $targetBox->id,
+                    'lokasi_rak' => $targetRack->kode_rak,
+                    'nomor_box'  => $targetBox->nomor_box,
+                ];
+
                 $originLoc = "{$doc->lokasi_rak_formatted} - {$doc->nomor_box_formatted}";
                 $relocateNote = "[Relokasi " . now()->format('d/m/Y') . "]: Dari {$originLoc} ke {$targetRack->kode_rak} - {$targetBox->nomor_box}. Alasan: {$validated['alasan']}";
 
@@ -612,18 +716,29 @@ class DocumentController extends Controller
                     'nomor_box'     => $targetBox->nomor_box,
                     'catatan_arsip' => $doc->catatan_arsip ? $doc->catatan_arsip . "\n" . $relocateNote : $relocateNote,
                 ]);
+
+                ActivityLog::log(
+                    'document_relocate',
+                    "Relokasi dokumen PB {$doc->nomor_pb} dari {$originLoc} ke {$targetRack->kode_rak} - {$targetBox->nomor_box} oleh " . ($user->name ?? 'Admin') . ". Alasan: {$validated['alasan']}",
+                    $doc,
+                    [
+                        'old_values' => $oldValues,
+                        'new_values' => $newValues,
+                        'alasan'     => $validated['alasan'],
+                    ]
+                );
             }
 
-            ActivityLog::log(
-                'document_relocate',
-                "Relokasi {$documents->count()} dokumen ke {$targetRack->kode_rak} - {$targetBox->nomor_box} oleh " . ($user->name ?? 'Admin') . ". Alasan: {$validated['alasan']}"
-            );
-        });
+            // Auto-lock target box if capacity reaches maximum (e.g. 20)
+            if ($targetBox->fresh()->total_dokumen >= $targetBox->kapasitas_maksimal) {
+                $targetBox->update(['status' => 'Penuh (Terkunci)']);
+            }
 
-        return response()->json([
-            'success'    => true,
-            'message'    => "Berhasil memindahkan {$documents->count()} dokumen ke {$targetRack->kode_rak} - {$targetBox->nomor_box}.",
-            'target_box' => $targetBox->fresh(['rack', 'documents']),
-        ]);
+            return response()->json([
+                'success'    => true,
+                'message'    => "Berhasil memindahkan {$documents->count()} dokumen ke {$targetRack->kode_rak} - {$targetBox->nomor_box}.",
+                'target_box' => $targetBox->fresh(['rack', 'documents']),
+            ]);
+        });
     }
 }

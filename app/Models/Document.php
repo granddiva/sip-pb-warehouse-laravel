@@ -22,6 +22,14 @@ class Document extends Model
         'verified_at' => 'datetime',
     ];
 
+    protected $appends = [
+        'total_harga',
+        'status_class',
+        'tanggal_indonesia',
+        'lokasi_rak_formatted',
+        'nomor_box_formatted',
+    ];
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

@@ -78,6 +78,7 @@ class Document extends Model
     public function getStatusClassAttribute(): string
     {
         if (str_contains($this->status, 'Terverifikasi')) return 'pill-verified';
+        if (str_contains($this->status, 'Revisi')) return 'pill-revision';
         if (str_contains($this->status, 'Menunggu')) return 'pill-pending';
         if (str_contains($this->status, 'Dipinjam')) return 'pill-borrowed';
         if (str_contains($this->status, 'Selesai')) return 'pill-done';

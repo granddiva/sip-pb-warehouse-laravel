@@ -85,6 +85,7 @@ class BorrowingController extends Controller
     {
         $docs = Document::where('status', 'not like', '%Dipinjam%')
             ->where('status', 'not like', '%Menunggu%')
+            ->where('status', 'not like', '%Revisi%')
             ->orderBy('nomor_pb')
             ->get(['id', 'nomor_pb', 'bagian', 'nama_pemohon', 'lokasi_rak', 'nomor_box']);
 
@@ -105,10 +106,10 @@ class BorrowingController extends Controller
 
         $document = Document::findOrFail($validated['document_id']);
 
-        if (str_contains($document->status, 'Menunggu')) {
+        if (str_contains($document->status, 'Menunggu') || str_contains($document->status, 'Revisi')) {
             return response()->json([
                 'success' => false,
-                'message' => 'Dokumen belum dapat dipinjam karena berkas fisik belum diserahkan dan diverifikasi di rak gudang.',
+                'message' => 'Dokumen belum dapat dipinjam karena berkas fisik belum disahkan di rak gudang.',
             ], 422);
         }
 

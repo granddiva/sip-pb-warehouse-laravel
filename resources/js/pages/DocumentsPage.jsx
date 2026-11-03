@@ -16,6 +16,8 @@ import {
   ChevronRight,
   Download,
   ShieldCheck,
+  AlertTriangle,
+  RotateCcw,
 } from 'lucide-react';
 import { documentApi } from '../api';
 
@@ -44,6 +46,7 @@ export default function DocumentsPage({ onNavigate, onToast, onOpenVerificationM
   const statusList = [
     'Terverifikasi & Diarsipkan',
     'Menunggu Arsip Fisik',
+    'Perlu Revisi Fisik',
     'Dokumen Dipinjam',
     'Selesai Pengadaan',
   ];
@@ -151,6 +154,7 @@ export default function DocumentsPage({ onNavigate, onToast, onOpenVerificationM
             { id: 'month', label: 'Bulan Ini' },
             { id: 'borrowed', label: 'Sedang Dipinjam' },
             { id: 'pending_physical', label: 'Menunggu Fisik' },
+            { id: 'need_revision', label: 'Perlu Revisi' },
           ].map((item) => (
             <button
               key={item.id}
@@ -279,9 +283,11 @@ export default function DocumentsPage({ onNavigate, onToast, onOpenVerificationM
                     </td>
                     <td className="py-3.5 px-4 whitespace-nowrap">
                       <span
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${
                           doc.status.includes('Terverifikasi')
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : doc.status.includes('Revisi')
+                            ? 'bg-gradient-to-r from-rose-50 to-amber-50 text-rose-800 border border-rose-300 font-extrabold shadow-sm'
                             : doc.status.includes('Dipinjam')
                             ? 'bg-rose-50 text-rose-700 border border-rose-200'
                             : doc.status.includes('Selesai')
@@ -289,7 +295,8 @@ export default function DocumentsPage({ onNavigate, onToast, onOpenVerificationM
                             : 'bg-amber-50 text-amber-700 border border-amber-200'
                         }`}
                       >
-                        {doc.status}
+                        {doc.status.includes('Revisi') && <AlertTriangle className="w-3 h-3 text-rose-600" />}
+                        <span>{doc.status}</span>
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-right whitespace-nowrap">
@@ -302,6 +309,16 @@ export default function DocumentsPage({ onNavigate, onToast, onOpenVerificationM
                           >
                             <ShieldCheck className="w-3.5 h-3.5" />
                             <span>Verifikasi Fisik</span>
+                          </button>
+                        )}
+                        {doc.status.includes('Revisi') && (
+                          <button
+                            onClick={() => onNavigate('document-edit', doc.id)}
+                            title="Perbaiki & lengkapi berkas yang memerlukan revisi"
+                            className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-sm mr-1 transition-all"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Revisi Berkas</span>
                           </button>
                         )}
                         <button

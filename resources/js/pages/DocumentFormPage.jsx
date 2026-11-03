@@ -48,6 +48,7 @@ export default function DocumentFormPage({ documentId, onNavigate, onToast }) {
   const [lokasiRak, setLokasiRak] = useState('Rak A');
   const [nomorBox, setNomorBox] = useState('Box 01');
   const [catatanArsip, setCatatanArsip] = useState('');
+  const [catatanVerifikasi, setCatatanVerifikasi] = useState('');
   const [keterangan, setKeterangan] = useState('');
 
   // Primary file
@@ -132,6 +133,7 @@ export default function DocumentFormPage({ documentId, onNavigate, onToast }) {
         setNamaPemohon(d.nama_pemohon);
         setNipPemohon(d.nip_pemohon || '');
         setStatus(d.status);
+        setCatatanVerifikasi(d.catatan_verifikasi || '');
         setLokasiRak(d.lokasi_rak || 'Rak A');
         setNomorBox(d.nomor_box || 'Box 01');
         setKeterangan(d.keterangan || '');
@@ -336,13 +338,15 @@ export default function DocumentFormPage({ documentId, onNavigate, onToast }) {
 
     try {
       if (isEdit) {
+        const statusToSubmit = status === 'Perlu Revisi Fisik' ? 'Menunggu Arsip Fisik' : status;
+
         const res = await documentApi.update(documentId, {
           nomor_pb: nomorPb,
           tanggal_pb: tanggalPb,
           bagian,
           nama_pemohon: namaPemohon,
           nip_pemohon: nipPemohon,
-          status,
+          status: statusToSubmit,
           lokasi_rak: lokasiRak,
           nomor_box: nomorBox,
           keterangan,
@@ -350,7 +354,12 @@ export default function DocumentFormPage({ documentId, onNavigate, onToast }) {
           items,
         });
 
-        onToast(res.data.message || 'Dokumen berhasil diperbarui.', 'success');
+        onToast(
+          status === 'Perlu Revisi Fisik'
+            ? 'Dokumen berhasil diperbaiki dan diajukan ulang ke gudang (Menunggu Arsip Fisik).'
+            : (res.data.message || 'Dokumen berhasil diperbarui.'),
+          'success'
+        );
         onNavigate('document-detail', documentId);
       } else {
         const formData = new FormData();
@@ -469,6 +478,31 @@ export default function DocumentFormPage({ documentId, onNavigate, onToast }) {
           )}
         </div>
       </div>
+
+      {/* Revision Required Notice Banner */}
+      {status === 'Perlu Revisi Fisik' && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-rose-50 to-amber-50 border-2 border-rose-300 text-rose-950 flex items-start gap-3 shadow-sm">
+          <div className="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center flex-shrink-0 mt-0.5">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+          <div className="space-y-1">
+            <div className="text-xs font-black uppercase tracking-wide text-rose-900 flex items-center gap-2">
+              <span>Berkas Dikembalikan Gudang untuk Revisi Fisik</span>
+              <span className="px-2 py-0.5 rounded-full bg-rose-200 text-rose-900 text-[10px] font-bold">
+                Perlu Revisi Fisik
+              </span>
+            </div>
+            {catatanVerifikasi && (
+              <p className="text-xs text-rose-900 font-semibold">
+                Catatan Petugas: <span className="italic font-bold text-rose-950">"{catatanVerifikasi}"</span>
+              </p>
+            )}
+            <p className="text-[11px] text-rose-800">
+              Perbaiki informasi atau lampiran berkas yang kurang di bawah ini. Setelah Anda menyimpan formulir ini, status berkas akan otomatis diajukan ulang menjadi <strong>"Menunggu Arsip Fisik"</strong> agar dapat diverifikasi kembali oleh petugas gudang.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Stepper Navigation: 4 Distinct Tabs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">

@@ -40,6 +40,8 @@ class DocumentController extends Controller
             $query->where('status', 'like', '%Dipinjam%');
         } elseif ($quick === 'pending_physical') {
             $query->where('status', 'like', '%Menunggu%');
+        } elseif ($quick === 'need_revision') {
+            $query->where('status', 'like', '%Revisi%');
         }
 
         // Dropdown filters
@@ -78,6 +80,7 @@ class DocumentController extends Controller
                 'total_harga'        => $doc->total_harga,
                 'uploaded_by'        => $doc->uploaded_by,
                 'is_pending_physical'=> str_contains($doc->status, 'Menunggu'),
+                'is_need_revision'   => str_contains($doc->status, 'Revisi'),
                 'verified_at'        => $doc->verified_at ? $doc->verified_at->format('d/m/Y H:i') : null,
             ];
         });
@@ -117,6 +120,7 @@ class DocumentController extends Controller
             'kondisi_berkas_fisik' => $document->kondisi_berkas_fisik,
             'catatan_verifikasi'   => $document->catatan_verifikasi,
             'is_pending_physical'  => str_contains($document->status, 'Menunggu'),
+            'is_need_revision'     => str_contains($document->status, 'Revisi'),
             'total_harga'          => $document->total_harga,
             'items'              => $document->items,
             'attachments'        => $document->attachments->map(fn($att) => [
@@ -312,6 +316,13 @@ class DocumentController extends Controller
         if (str_contains($document->status, 'Dipinjam')) {
             // Cannot manually alter status while document is physically loaned out
             $validated['status'] = $document->status;
+        } elseif ($document->status === 'Perlu Revisi Fisik') {
+            // Document under revision can be updated and resubmitted to 'Menunggu Arsip Fisik'
+            $newStatus = $validated['status'] ?? 'Menunggu Arsip Fisik';
+            if (!in_array($newStatus, ['Menunggu Arsip Fisik', 'Perlu Revisi Fisik'])) {
+                $newStatus = 'Menunggu Arsip Fisik';
+            }
+            $validated['status'] = $newStatus;
         } else {
             $newStatus = $validated['status'] ?? $document->status;
             if (str_contains($newStatus, 'Dipinjam')) {
@@ -320,7 +331,7 @@ class DocumentController extends Controller
                     'message' => 'Status "Dokumen Dipinjam" hanya dapat diaktifkan melalui menu Sirkulasi Peminjaman.',
                 ], 422);
             }
-            if (!in_array($newStatus, ['Menunggu Arsip Fisik', 'Terverifikasi & Diarsipkan', 'Selesai Pengadaan'])) {
+            if (!in_array($newStatus, ['Menunggu Arsip Fisik', 'Terverifikasi & Diarsipkan', 'Selesai Pengadaan', 'Perlu Revisi Fisik'])) {
                 $validated['status'] = 'Terverifikasi & Diarsipkan';
             }
         }
@@ -634,6 +645,64 @@ class DocumentController extends Controller
     }
 
     /**
+     * Reject or return physical document for revision before warehouse archive.
+     */
+    public function rejectPhysical(Request $request, Document $document)
+    {
+        // Guard: Only pending physical documents can be rejected/returned for revision
+        if (!str_contains($document->status, 'Menunggu')) {
+            return response()->json([
+                'success' => false,
+                'message' => "Hanya dokumen dengan status 'Menunggu Arsip Fisik' yang dapat ditolak atau dikembalikan untuk revisi fisik.",
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'alasan_penolakan' => 'required|string|min:3|max:1000',
+        ]);
+
+        $user = Auth::user();
+
+        $oldValues = [
+            'status'             => $document->status,
+            'catatan_verifikasi' => $document->catatan_verifikasi,
+        ];
+
+        $rejectionNote = "[Revisi Fisik " . now()->format('d/m/Y H:i') . " by " . ($user->name ?? 'Admin') . "]: " . $validated['alasan_penolakan'];
+
+        $document->update([
+            'status'             => 'Perlu Revisi Fisik',
+            'catatan_verifikasi' => $validated['alasan_penolakan'],
+            'catatan_arsip'      => $document->catatan_arsip
+                ? $document->catatan_arsip . "\n" . $rejectionNote
+                : $rejectionNote,
+        ]);
+
+        $newValues = [
+            'status'             => 'Perlu Revisi Fisik',
+            'catatan_verifikasi' => $validated['alasan_penolakan'],
+            'rejected_by'        => $user?->name ?? 'Admin',
+        ];
+
+        ActivityLog::log(
+            'reject_physical',
+            "Penolakan berkas fisik dokumen PB {$document->nomor_pb} oleh " . ($user->name ?? 'Admin') . ". Alasan: {$validated['alasan_penolakan']}",
+            $document,
+            [
+                'old_values'       => $oldValues,
+                'new_values'       => $newValues,
+                'alasan_penolakan' => $validated['alasan_penolakan'],
+            ]
+        );
+
+        return response()->json([
+            'success'  => true,
+            'document' => $document->fresh(['box.rack', 'verifiedByUser']),
+            'message'  => "Dokumen PB {$document->nomor_pb} berhasil dikembalikan ke pemohon dengan status 'Perlu Revisi Fisik'.",
+        ]);
+    }
+
+    /**
      * Relocate / Mutate physical documents from one box/rack to another.
      */
     public function relocate(Request $request)
@@ -675,12 +744,18 @@ class DocumentController extends Controller
                 ->lockForUpdate()
                 ->get();
 
-            // Guard: Document cannot be borrowed
+            // Guard: Document cannot be borrowed or pending/revision
             foreach ($documents as $doc) {
                 if (str_contains($doc->status, 'Dipinjam')) {
                     return response()->json([
                         'success' => false,
                         'message' => "Dokumen {$doc->nomor_pb} sedang dipinjam keluar gudang sehingga tidak dapat direlokasi fisik.",
+                    ], 422);
+                }
+                if (str_contains($doc->status, 'Revisi') || str_contains($doc->status, 'Menunggu')) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Dokumen {$doc->nomor_pb} belum sah tersimpan di rak gudang sehingga tidak dapat direlokasi.",
                     ], 422);
                 }
             }

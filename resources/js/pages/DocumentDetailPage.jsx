@@ -15,6 +15,7 @@ import {
   Printer,
   ShieldCheck,
   FileCheck2,
+  RotateCcw,
 } from 'lucide-react';
 import { documentApi, attachmentApi } from '../api';
 
@@ -148,6 +149,17 @@ export default function DocumentDetailPage({
             </button>
           )}
 
+          {/* Action: Revisi Berkas if status is Perlu Revisi Fisik */}
+          {doc.status.includes('Revisi') && (
+            <button
+              onClick={() => onNavigate('document-edit', doc.id)}
+              className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md shadow-amber-600/30 flex items-center gap-1.5 transition-all"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>Perbaiki & Ajukan Ulang</span>
+            </button>
+          )}
+
           {/* Action: Borrow or Return */}
           {isBorrowed ? (
             <button
@@ -213,6 +225,39 @@ export default function DocumentDetailPage({
               <span>Verifikasi & Tempatkan Sekarang</span>
             </button>
           )}
+        </div>
+      )}
+
+      {/* Revision Required Alert Banner */}
+      {doc.status.includes('Revisi') && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-rose-50 to-amber-50 border-2 border-rose-300 text-rose-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center flex-shrink-0 mt-0.5">
+              <RotateCcw className="w-5 h-5 stroke-[2.5]" />
+            </div>
+            <div>
+              <div className="text-xs font-black text-rose-950 uppercase tracking-wide flex items-center gap-2">
+                <span>BERKAS FISIK MEMERLUKAN REVISI / PERBAIKAN</span>
+                <span className="px-2 py-0.5 rounded-full bg-rose-200 text-rose-900 text-[10px] font-bold">
+                  Perlu Tindakan Pemohon
+                </span>
+              </div>
+              <p className="text-xs text-rose-800 font-semibold mt-1">
+                Catatan Petugas Gudang: <span className="italic text-rose-950 font-bold">"{doc.catatan_verifikasi || 'Lengkapi kekurangan tanda tangan atau lampiran fisik dokumen'}"</span>
+              </p>
+              <p className="text-[11px] text-rose-700 mt-0.5">
+                Silakan edit formulir PB atau unggah lampiran digital pendukung yang baru, kemudian serahkan kembali hardcopy fisik ke gudang untuk diverifikasi ulang.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => onNavigate('document-edit', doc.id)}
+            className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm whitespace-nowrap flex-shrink-0 flex items-center gap-1.5 self-start sm:self-center"
+          >
+            <Edit className="w-4 h-4" />
+            <span>Perbaiki Dokumen PB</span>
+          </button>
         </div>
       )}
 
@@ -330,6 +375,8 @@ export default function DocumentDetailPage({
                 className={`inline-block px-2.5 py-0.5 rounded-full font-bold text-[11px] mt-0.5 ${
                   doc.status.includes('Terverifikasi')
                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : doc.status.includes('Revisi')
+                    ? 'bg-gradient-to-r from-rose-50 to-amber-50 text-rose-800 border border-rose-300 font-extrabold shadow-sm'
                     : doc.status.includes('Dipinjam')
                     ? 'bg-rose-50 text-rose-700 border border-rose-200'
                     : 'bg-amber-50 text-amber-700 border border-amber-200'

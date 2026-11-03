@@ -296,4 +296,116 @@ class BackendArchitectureHardeningTest extends TestCase
         $this->assertEquals('Pindah berkas audit ke rak C', $relocateLog->properties['alasan']);
         $this->assertEquals($targetRack->kode_rak, $relocateLog->properties['new_values']['lokasi_rak']);
     }
+
+    /**
+     * Requirement: Penolakan / Revisi Berkas Fisik State Machine & Activity Log
+     */
+    public function test_reject_physical_transitions_status_and_logs_audit_trail(): void
+    {
+        $pendingDoc = Document::create([
+            'user_id'      => $this->user->id,
+            'nomor_pb'     => 'PB/BMS-WH/2026/11/REJECT01',
+            'tanggal_pb'   => '2026-11-03',
+            'bagian'       => 'Warehouse & Logistik',
+            'nama_pemohon' => 'Bambang Sudirman',
+            'status'       => 'Menunggu Arsip Fisik',
+        ]);
+
+        $response = $this->actingAs($this->user)->postJson("/api/documents/{$pendingDoc->id}/reject-physical", [
+            'alasan_penolakan' => 'Tanda tangan/cap basah belum lengkap; Lampiran PO/DO/BAST kurang',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+            ])
+            ->assertJsonPath('document.status', 'Perlu Revisi Fisik');
+
+        $pendingDoc->refresh();
+        $this->assertEquals('Perlu Revisi Fisik', $pendingDoc->status);
+        $this->assertEquals('Tanda tangan/cap basah belum lengkap; Lampiran PO/DO/BAST kurang', $pendingDoc->catatan_verifikasi);
+        $this->assertStringContainsString('Revisi Fisik', $pendingDoc->catatan_arsip);
+
+        // Verify Activity Log was recorded
+        $log = ActivityLog::where('activity_type', 'reject_physical')
+            ->where('subject_type', Document::class)
+            ->where('subject_id', $pendingDoc->id)
+            ->latest()
+            ->first();
+
+        $this->assertNotNull($log);
+        $this->assertEquals('Menunggu Arsip Fisik', $log->properties['old_values']['status']);
+        $this->assertEquals('Perlu Revisi Fisik', $log->properties['new_values']['status']);
+        $this->assertEquals('Tanda tangan/cap basah belum lengkap; Lampiran PO/DO/BAST kurang', $log->properties['alasan_penolakan']);
+    }
+
+    public function test_reject_physical_fails_for_non_pending_documents(): void
+    {
+        $verifiedDoc = Document::where('status', 'Terverifikasi & Diarsipkan')->first();
+
+        $response = $this->actingAs($this->user)->postJson("/api/documents/{$verifiedDoc->id}/reject-physical", [
+            'alasan_penolakan' => 'Coba tolak dokumen yang sudah terverifikasi',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+            ]);
+    }
+
+    public function test_document_with_status_perlu_revisi_fisik_can_be_edited_and_resubmitted(): void
+    {
+        $doc = Document::create([
+            'user_id'            => $this->user->id,
+            'nomor_pb'           => 'PB/BMS-WH/2026/11/REVISI02',
+            'tanggal_pb'         => '2026-11-03',
+            'bagian'             => 'Warehouse & Logistik',
+            'nama_pemohon'       => 'Hendra Wijaya',
+            'status'             => 'Perlu Revisi Fisik',
+            'catatan_verifikasi' => 'Tanda tangan pemohon kurang',
+        ]);
+
+        // 1. Cannot be borrowed while in revision
+        $borrowAttempt = $this->actingAs($this->user)->postJson('/api/borrowings', [
+            'document_id'         => $doc->id,
+            'nama_peminjam'       => 'Peminjam Gelap',
+            'departemen_peminjam' => 'Operasional Lapangan',
+            'keperluan'           => 'Uji coba pinjam',
+            'tanggal_pinjam'      => '2026-11-03',
+            'batas_kembali'       => '2026-11-05',
+        ]);
+        $borrowAttempt->assertStatus(422);
+
+        // 2. Pemohon edits and resubmits the document
+        $updateResponse = $this->actingAs($this->user)->putJson("/api/documents/{$doc->id}", [
+            'nomor_pb'     => 'PB/BMS-WH/2026/11/REVISI02',
+            'tanggal_pb'   => '2026-11-03',
+            'bagian'       => 'Warehouse & Logistik',
+            'nama_pemohon' => 'Hendra Wijaya (Revisi Lengkap)',
+            'status'       => 'Menunggu Arsip Fisik', // Resubmit
+        ]);
+
+        $updateResponse->assertStatus(200);
+
+        $doc->refresh();
+        $this->assertEquals('Menunggu Arsip Fisik', $doc->status);
+        $this->assertEquals('Hendra Wijaya (Revisi Lengkap)', $doc->nama_pemohon);
+
+        // 3. Warehouse verifies physical and shelves it to Rak A Box 01
+        $rack = Rack::where('kode_rak', 'Rak A')->first();
+        $box = $rack->boxes()->first();
+
+        $verifyResponse = $this->actingAs($this->user)->postJson("/api/documents/{$doc->id}/verify-physical", [
+            'box_id'               => $box->id,
+            'kondisi_berkas_fisik' => 'Asli & Cap Basah Lengkap',
+            'cek_tanda_tangan'     => true,
+            'cek_lampiran_lengkap' => true,
+            'catatan_verifikasi'   => 'Verifikasi ulang setelah revisi selesai',
+        ]);
+
+        $verifyResponse->assertStatus(200);
+
+        $doc->refresh();
+        $this->assertEquals('Terverifikasi & Diarsipkan', $doc->status);
+    }
 }

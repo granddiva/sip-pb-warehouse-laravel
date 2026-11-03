@@ -14,7 +14,8 @@ export default function QrCodePrintPage({ onNavigate, onToast, initialType = 'bo
       setItems(res.data.items || []);
     } catch (err) {
       console.error(err);
-      onToast('Gagal memuat label QR Code.', 'error');
+      const msg = err.response?.data?.message || 'Gagal memuat label QR Code. Pastikan database telah di-seed.';
+      onToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -88,6 +89,21 @@ export default function QrCodePrintPage({ onNavigate, onToast, initialType = 'bo
         <div className="py-16 text-center text-slate-400">
           <div className="w-8 h-8 border-3 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
           <span className="text-xs">Menyiapkan kode QR SVG vektor...</span>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+            <QrCode className="w-6 h-6 text-slate-400" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-slate-800">
+              {type === 'boxes' ? 'Belum Ada Data Ordner Box' : 'Belum Ada Data Dokumen PB'}
+            </h4>
+            <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 leading-relaxed">
+              Database belum memiliki data {type === 'boxes' ? 'rak/box' : 'dokumen'}.
+              Jalankan perintah <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-[11px]">php artisan db:seed</code> di terminal untuk mengisi data master.
+            </p>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 print:block">

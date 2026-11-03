@@ -62,6 +62,17 @@ class PhaseOneArchitectureTest extends TestCase
         $this->assertTrue($borrowing->is_overdue);
     }
 
+    public function test_borrowing_slip_view_renders_successfully_with_named_routes(): void
+    {
+        $borrowing = BorrowingLog::first();
+        $this->assertNotNull($borrowing);
+
+        $response = $this->get(route('borrowings.slip', $borrowing));
+        $response->assertStatus(200);
+        $response->assertSee('SURAT TANDA TERIMA PEMINJAMAN DOKUMEN ARSIP FISIK');
+        $response->assertSee(route('borrowings.index'));
+    }
+
     public function test_activity_logs_helper(): void
     {
         $admin = User::where('username', 'admin')->first();

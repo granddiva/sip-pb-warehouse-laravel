@@ -16,6 +16,22 @@ class AttachmentController extends Controller
      */
     public function store(Request $request, Document $document)
     {
+        $user = auth()->user();
+        if ($user) {
+            if ($user->isAuditor()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akses ditolak (HTTP 403): Role Auditor hanya memiliki hak akses Read-Only dan tidak diizinkan mengunggah lampiran.',
+                ], 403);
+            }
+            if ($user->isRequesterDivision() && !$user->canEditDocument($document)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akses ditolak (HTTP 403): Anda hanya berhak mengunggah lampiran untuk dokumen PB divisi Anda sendiri.',
+                ], 403);
+            }
+        }
+
         $request->validate([
             'jenis_dokumen' => 'required|string|max:100',
             'file'          => 'required|file|mimes:pdf,jpg,jpeg,png,webp|max:10240',
@@ -95,6 +111,22 @@ class AttachmentController extends Controller
      */
     public function destroy(DocumentAttachment $attachment)
     {
+        $user = auth()->user();
+        if ($user) {
+            if ($user->isAuditor()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akses ditolak (HTTP 403): Role Auditor hanya memiliki hak akses Read-Only dan tidak diizinkan menghapus lampiran.',
+                ], 403);
+            }
+            if ($user->isRequesterDivision() && !$user->canEditDocument($attachment->document)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akses ditolak (HTTP 403): Anda tidak memiliki izin untuk menghapus lampiran dokumen ini.',
+                ], 403);
+            }
+        }
+
         $doc = $attachment->document;
         $name = $attachment->file_name;
 

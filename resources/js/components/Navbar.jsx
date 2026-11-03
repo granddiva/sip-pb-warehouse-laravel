@@ -46,7 +46,7 @@ export default function Navbar({ onOpenMobileMenu, currentPage, user, onNavigate
           <kbd className="hidden lg:inline text-[9px] bg-slate-100 text-slate-500 px-1 py-0.5 rounded font-mono border">Ctrl+K</kbd>
         </button>
 
-        {currentPage !== 'document-create' && (
+        {currentPage !== 'document-create' && !user?.is_auditor && (
           <button
             onClick={() => onNavigate('document-create')}
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-sm shadow-sky-600/30 transition-all hover:shadow"
@@ -56,13 +56,29 @@ export default function Navbar({ onOpenMobileMenu, currentPage, user, onNavigate
           </button>
         )}
 
-        <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200">
+        <div className="flex items-center gap-2 pl-3 border-l border-slate-200">
+          {/* User Role Badge */}
+          {user?.is_admin_warehouse ? (
+            <span className="hidden md:inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
+              Admin WH
+            </span>
+          ) : user?.is_auditor ? (
+            <span className="hidden md:inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+              Auditor (Read-Only)
+            </span>
+          ) : (
+            <span className="hidden md:inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 max-w-[130px] truncate" title={user?.divisi}>
+              {user?.divisi ? user.divisi.split(' ')[0] : 'Pemohon'}
+            </span>
+          )}
+
           <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-sky-800 flex items-center justify-center font-extrabold text-xs">
             {user?.avatar || 'U'}
           </div>
-          <span className="text-xs font-bold text-slate-700 hidden md:inline">
-            {user?.name}
-          </span>
+          <div className="hidden lg:block text-left">
+            <div className="text-xs font-bold text-slate-800 truncate max-w-[120px]">{user?.name}</div>
+            <div className="text-[10px] text-slate-400 truncate max-w-[120px]">{user?.divisi || user?.role}</div>
+          </div>
         </div>
       </div>
     </header>

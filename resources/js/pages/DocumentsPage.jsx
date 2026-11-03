@@ -22,10 +22,26 @@ import {
 } from 'lucide-react';
 import { documentApi } from '../api';
 
-export default function DocumentsPage({ onNavigate, onToast, onOpenVerificationModal, refreshKey }) {
+export default function DocumentsPage({ user, onNavigate, onToast, onOpenVerificationModal, refreshKey }) {
   const [documents, setDocuments] = useState([]);
   const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
   const [loading, setLoading] = useState(true);
+
+  // Permission helpers
+  const canManageWarehouse = user?.can_manage_warehouse;
+  const isAuditor = user?.is_auditor;
+
+  const canEditDoc = (doc) => {
+    if (isAuditor) return false;
+    if (canManageWarehouse) return true;
+    if (user?.is_requester_division) {
+      if (!user?.divisi) return true;
+      const userDiv = user.divisi.toLowerCase().trim();
+      const docBagian = (doc.bagian || '').toLowerCase().trim();
+      return userDiv === docBagian || docBagian.includes(userDiv) || userDiv.includes(docBagian);
+    }
+    return false;
+  };
 
   // Filters
   const [search, setSearch] = useState('');
@@ -134,13 +150,29 @@ export default function DocumentsPage({ onNavigate, onToast, onOpenVerificationM
             <QrCode className="w-4 h-4 text-slate-600" />
             <span>Label & QR Code</span>
           </button>
-          <button
-            onClick={() => onNavigate('document-create')}
-            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-md shadow-sky-600/30 flex items-center gap-1.5 transition-all"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>+ Upload PB Baru</span>
-          </button>
+          {!isAuditor ? (
+            <button
+              onClick={() => onNavigate('document-create')}
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-md shadow-sky-600/30 flex items-center gap-1.5 transition-all"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>+ Upload PB Baru</span>
+            </button>
+          ) : (
+            <div className="relative group">
+              <button
+                disabled
+                className="px-4 py-2 rounded-xl bg-slate-200 text-slate-400 text-xs font-bold cursor-not-allowed flex items-center gap-1.5"
+                title="Role Auditor berstatus Read-Only: Pembuatan PB dibatasi"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>+ Upload PB Baru</span>
+              </button>
+              <div className="absolute right-0 top-full mt-1.5 z-20 hidden group-hover:block px-2.5 py-1 text-[11px] font-medium text-white bg-slate-900 rounded-lg shadow-lg whitespace-nowrap">
+                Role Auditor: Hak Akses Read-Only
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -316,7 +348,7 @@ export default function DocumentsPage({ onNavigate, onToast, onOpenVerificationM
                     </td>
                     <td className="py-3.5 px-4 text-right whitespace-nowrap">
                       <div className="inline-flex items-center gap-1">
-                        {doc.status.includes('Menunggu') && onOpenVerificationModal && (
+                        {doc.status.includes('Menunggu') && onOpenVerificationModal && canManageWarehouse && (
                           <button
                             onClick={() => onOpenVerificationModal(doc)}
                             title="Verifikasi keabsahan fisik berkas hardcopy & simpan ke rak"
@@ -326,7 +358,7 @@ export default function DocumentsPage({ onNavigate, onToast, onOpenVerificationM
                             <span>Verifikasi Fisik</span>
                           </button>
                         )}
-                        {doc.status.includes('Revisi') && (
+                        {doc.status.includes('Revisi') && canEditDoc(doc) && (
                           <button
                             onClick={() => onNavigate('document-edit', doc.id)}
                             title="Perbaiki & lengkapi berkas yang memerlukan revisi"
@@ -343,20 +375,32 @@ export default function DocumentsPage({ onNavigate, onToast, onOpenVerificationM
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => onNavigate('document-edit', doc.id)}
-                          title="Edit Dokumen"
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition-colors"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(doc.id, doc.nomor_pb, doc.status)}
-                          title="Hapus Dokumen"
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canEditDoc(doc) ? (
+                          <button
+                            onClick={() => onNavigate('document-edit', doc.id)}
+                            title="Edit Dokumen PB"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button
+                            disabled
+                            title={isAuditor ? 'Role Auditor: Read-Only' : `Hanya dokumen divisi ${user?.divisi || 'Anda'} yang dapat diedit`}
+                            className="p-1.5 rounded-lg text-slate-300 cursor-not-allowed"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                        )}
+                        {canManageWarehouse && (
+                          <button
+                            onClick={() => handleDelete(doc.id, doc.nomor_pb, doc.status)}
+                            title="Hapus Dokumen (Admin WH)"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

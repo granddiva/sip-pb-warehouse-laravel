@@ -18,6 +18,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { scannerApi } from '../api';
 
 export default function QuickScanModal({
+  user,
   isOpen,
   onClose,
   onToast,
@@ -28,6 +29,8 @@ export default function QuickScanModal({
   onNavigateDetail,
 }) {
   if (!isOpen) return null;
+
+  const canManage = user?.can_manage_warehouse;
 
   const [activeTab, setActiveTab] = useState('camera'); // 'camera' or 'gun'
   const [manualCode, setManualCode] = useState('');
@@ -408,57 +411,116 @@ export default function QuickScanModal({
 
                 {/* Case 1: Document in Pending Physical Verification */}
                 {scanResult.type === 'document' && scanResult.action === 'verify_physical' && (
-                  <button
-                    onClick={() => {
-                      handleClose();
-                      onOpenVerification(scanResult.data);
-                    }}
-                    className="w-full py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-600/30 flex items-center justify-center gap-2 transition-all"
-                  >
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>✓ Verifikasi Fisik & Sahkan ke Rak Gudang</span>
-                  </button>
+                  canManage ? (
+                    <button
+                      onClick={() => {
+                        handleClose();
+                        onOpenVerification(scanResult.data);
+                      }}
+                      className="w-full py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-600/30 flex items-center justify-center gap-2 transition-all"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>✓ Verifikasi Fisik & Sahkan ke Rak Gudang</span>
+                    </button>
+                  ) : (
+                    <div className="space-y-2">
+                      <button
+                        disabled
+                        className="w-full py-2.5 rounded-xl bg-slate-800 text-slate-500 text-xs font-bold cursor-not-allowed flex items-center justify-center gap-2 border border-slate-700"
+                        title="Hanya Admin/Petugas Warehouse yang berhak memverifikasi fisik dokumen"
+                      >
+                        <ShieldCheck className="w-4 h-4 text-slate-500" />
+                        <span>Verifikasi Fisik (Khusus Admin WH)</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleClose();
+                          onNavigateDetail(scanResult.data.id);
+                        }}
+                        className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all border border-slate-700"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        <span>Buka Lembar Detail Dokumen PB</span>
+                      </button>
+                    </div>
+                  )
                 )}
 
                 {/* Case 2: Document is Archived & Ready to Borrow */}
                 {scanResult.type === 'document' && scanResult.action === 'borrow_document' && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => {
-                        handleClose();
-                        onOpenBorrow(scanResult.data);
-                      }}
-                      className="py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all"
-                    >
-                      <FolderOpen className="w-4 h-4" />
-                      <span>1-Click Pinjamkan</span>
-                    </button>
+                  canManage ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => {
+                          handleClose();
+                          onOpenBorrow(scanResult.data);
+                        }}
+                        className="py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all"
+                      >
+                        <FolderOpen className="w-4 h-4" />
+                        <span>1-Click Pinjamkan</span>
+                      </button>
 
+                      <button
+                        onClick={() => {
+                          handleClose();
+                          onNavigateDetail(scanResult.data.id);
+                        }}
+                        className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        <span>Buka Detail PB</span>
+                      </button>
+                    </div>
+                  ) : (
                     <button
                       onClick={() => {
                         handleClose();
                         onNavigateDetail(scanResult.data.id);
                       }}
-                      className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all"
+                      className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all"
                     >
                       <ExternalLink className="w-4 h-4" />
-                      <span>Buka Detail PB</span>
+                      <span>Buka Lembar Detail Dokumen PB</span>
                     </button>
-                  </div>
+                  )
                 )}
 
                 {/* Case 3: Document is currently borrowed -> Return physical */}
                 {scanResult.type === 'document' && scanResult.action === 'return_physical' && (
-                  <button
-                    onClick={() => {
-                      handleClose();
-                      onOpenReturn(scanResult.data.active_borrowing);
-                    }}
-                    className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition-all"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>✓ Proses Pengembalian Berkas Fisik</span>
-                  </button>
+                  canManage ? (
+                    <button
+                      onClick={() => {
+                        handleClose();
+                        onOpenReturn(scanResult.data.active_borrowing);
+                      }}
+                      className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition-all"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>✓ Proses Pengembalian Berkas Fisik</span>
+                    </button>
+                  ) : (
+                    <div className="space-y-2">
+                      <button
+                        disabled
+                        className="w-full py-2.5 rounded-xl bg-slate-800 text-slate-500 text-xs font-bold cursor-not-allowed flex items-center justify-center gap-2 border border-slate-700"
+                        title="Pengesahan pengembalian hanya dapat diproses oleh Admin/Petugas Warehouse"
+                      >
+                        <CheckCircle2 className="w-4 h-4 text-slate-500" />
+                        <span>Pengembalian Fisik (Khusus Admin WH)</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleClose();
+                          onNavigateDetail(scanResult.data.id);
+                        }}
+                        className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all border border-slate-700"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        <span>Buka Lembar Detail Dokumen PB</span>
+                      </button>
+                    </div>
+                  )
                 )}
 
                 {/* Case 4: Box Scanned -> Open Box Dossier */}

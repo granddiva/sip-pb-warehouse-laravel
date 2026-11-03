@@ -21,13 +21,15 @@ export default function Sidebar({
   isOpen,
   onClose,
 }) {
-  const navItems = [
+  const isAuditor = user?.is_auditor;
+
+  const rawNavItems = [
     {
       category: 'Navigasi Utama',
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'documents', label: 'Data Dokumen PB', icon: FileText, badge: counts.documents },
-        { id: 'document-create', label: 'Upload Dokumen PB', icon: UploadCloud },
+        ...(isAuditor ? [] : [{ id: 'document-create', label: 'Upload Dokumen PB', icon: UploadCloud }]),
       ],
     },
     {
@@ -51,6 +53,8 @@ export default function Sidebar({
       ],
     },
   ];
+
+  const navItems = rawNavItems;
 
   return (
     <>
@@ -147,21 +151,41 @@ export default function Sidebar({
 
         {/* User Card & Logout Footer */}
         <div className="p-4 border-t border-slate-800/80 bg-slate-900/40">
-          <div className="flex items-center gap-3 p-2 rounded-lg bg-slate-900/80 border border-slate-800">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-sky-600 to-blue-500 flex items-center justify-center font-bold text-white text-sm shadow-inner flex-shrink-0">
-              {user?.avatar || 'AW'}
+          <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-sky-600 to-blue-500 flex items-center justify-center font-bold text-white text-sm shadow-inner flex-shrink-0">
+                {user?.avatar || 'AW'}
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <div className="text-sm font-bold text-white truncate">{user?.name || 'User Warehouse'}</div>
+                <div className="text-[11px] text-slate-400 truncate">{user?.divisi || user?.role || 'Staff'}</div>
+              </div>
+              <button
+                onClick={onLogout}
+                title="Keluar dari sistem"
+                className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
-            <div className="flex-1 overflow-hidden">
-              <div className="text-sm font-bold text-white truncate">{user?.name || 'User Warehouse'}</div>
-              <div className="text-xs text-sky-400 truncate">{user?.role || 'Staff'}</div>
+
+            {/* Role RBAC Badge */}
+            <div className="pt-1 border-t border-slate-800/60 flex items-center justify-between text-[10px]">
+              <span className="text-slate-500 font-semibold uppercase tracking-wider">Peran:</span>
+              {user?.is_admin_warehouse ? (
+                <span className="px-2 py-0.5 rounded-full font-bold bg-sky-500/20 text-sky-400 border border-sky-500/30">
+                  Admin Warehouse
+                </span>
+              ) : user?.is_auditor ? (
+                <span className="px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                  Auditor (Read-Only)
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 truncate max-w-[150px]">
+                  Pemohon Divisi
+                </span>
+              )}
             </div>
-            <button
-              onClick={onLogout}
-              title="Keluar dari sistem"
-              className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
           </div>
         </div>
       </aside>

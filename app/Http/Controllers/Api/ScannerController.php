@@ -90,19 +90,33 @@ class ScannerController extends Controller
     private function formatDocumentResponse(Document $doc, string $rawCode)
     {
         $activeBorrowing = $doc->borrowingLogs()->where('status_pinjam', 'Dipinjam')->latest()->first();
+        $user = auth()->user();
 
         $action = 'view_detail';
         $actionLabel = 'Lihat Detail PB';
 
-        if ($doc->status === 'Menunggu Arsip Fisik') {
-            $action = 'verify_physical';
-            $actionLabel = 'Verifikasi Fisik & Simpan ke Rak';
-        } elseif (str_contains($doc->status, 'Dipinjam')) {
-            $action = 'return_physical';
-            $actionLabel = 'Pengesahan Kembali Berkas PB';
-        } elseif ($doc->status === 'Terverifikasi & Diarsipkan') {
-            $action = 'borrow_document';
-            $actionLabel = 'Pinjamkan Berkas Fisik PB';
+        if ($user && $user->canManageWarehouse()) {
+            if ($doc->status === 'Menunggu Arsip Fisik') {
+                $action = 'verify_physical';
+                $actionLabel = 'Verifikasi Fisik & Simpan ke Rak';
+            } elseif (str_contains($doc->status, 'Dipinjam')) {
+                $action = 'return_physical';
+                $actionLabel = 'Pengesahan Kembali Berkas PB';
+            } elseif ($doc->status === 'Terverifikasi & Diarsipkan') {
+                $action = 'borrow_document';
+                $actionLabel = 'Pinjamkan Berkas Fisik PB';
+            }
+        } elseif (!$user) {
+            if ($doc->status === 'Menunggu Arsip Fisik') {
+                $action = 'verify_physical';
+                $actionLabel = 'Verifikasi Fisik & Simpan ke Rak';
+            } elseif (str_contains($doc->status, 'Dipinjam')) {
+                $action = 'return_physical';
+                $actionLabel = 'Pengesahan Kembali Berkas PB';
+            } elseif ($doc->status === 'Terverifikasi & Diarsipkan') {
+                $action = 'borrow_document';
+                $actionLabel = 'Pinjamkan Berkas Fisik PB';
+            }
         }
 
         return response()->json([

@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('admin123'),
             'name'     => 'Admin Warehouse',
             'role'     => 'Admin Warehouse',
+            'divisi'   => 'Warehouse & Logistik',
             'nip'      => 'BMS-WH-0012',
             'avatar'   => 'AW',
         ]);
@@ -31,6 +32,7 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('petugas123'),
             'name'     => 'Staff Warehouse',
             'role'     => 'Staff Warehouse',
+            'divisi'   => 'Warehouse & Logistik',
             'nip'      => 'BMS-WH-0045',
             'avatar'   => 'SW',
         ]);
@@ -40,8 +42,29 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('auditor123'),
             'name'     => 'Tim Audit & QC',
             'role'     => 'Auditor',
+            'divisi'   => 'Audit & Compliance',
             'nip'      => 'BMS-AUD-0099',
             'avatar'   => 'AU',
+        ]);
+
+        $requesterMch = User::create([
+            'username' => 'requester_mch',
+            'password' => Hash::make('requester123'),
+            'name'     => 'Budi Santoso (Machining)',
+            'role'     => 'requester_division',
+            'divisi'   => 'Workshop Machining & Threading',
+            'nip'      => 'BMS-MCH-0077',
+            'avatar'   => 'BS',
+        ]);
+
+        $requesterOps = User::create([
+            'username' => 'requester_ops',
+            'password' => Hash::make('requester123'),
+            'name'     => 'Rian Hidayat (Maintenance)',
+            'role'     => 'requester_division',
+            'divisi'   => 'Maintenance & Utility',
+            'nip'      => 'BMS-OPS-0088',
+            'avatar'   => 'RH',
         ]);
 
         // 2. Master Racks (Lemari Rak Fisik Gudang)

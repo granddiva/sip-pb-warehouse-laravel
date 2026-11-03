@@ -94,6 +94,14 @@ class BorrowingController extends Controller
 
     public function store(Request $request)
     {
+        $user = auth()->user();
+        if ($user && !$user->canManageWarehouse()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak (HTTP 403): Hanya Admin/Petugas Warehouse yang berhak memproses peminjaman dokumen.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'document_id'         => 'required|exists:documents,id',
             'nama_peminjam'       => 'required|string|max:255',
@@ -167,6 +175,14 @@ class BorrowingController extends Controller
 
     public function returnDoc(Request $request, BorrowingLog $borrowing)
     {
+        $user = auth()->user();
+        if ($user && !$user->canManageWarehouse()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak (HTTP 403): Hanya Admin/Petugas Warehouse yang berhak memproses pengembalian berkas fisik dokumen.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'tanggal_kembali'     => 'required|date',
             'is_form_pb_lengkap'  => 'required|boolean',

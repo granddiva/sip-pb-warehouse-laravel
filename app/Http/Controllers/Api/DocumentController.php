@@ -164,6 +164,14 @@ class DocumentController extends Controller
 
     public function store(Request $request)
     {
+        $user = Auth::user();
+        if ($user && $user->isAuditor()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak (HTTP 403): Role Auditor hanya memiliki hak akses Read-Only dan tidak diizinkan membuat dokumen PB.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'nomor_pb'      => 'required|string|unique:documents,nomor_pb',
             'tanggal_pb'    => 'required|date',
@@ -178,6 +186,10 @@ class DocumentController extends Controller
             'file_dokumen'  => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'items'         => 'nullable|array',
         ]);
+
+        if ($user && $user->isRequesterDivision() && $user->divisi) {
+            $validated['bagian'] = $user->divisi;
+        }
 
         // Resolve box_id
         $boxId = null;
@@ -298,6 +310,22 @@ class DocumentController extends Controller
 
     public function update(Request $request, Document $document)
     {
+        $user = Auth::user();
+        if ($user) {
+            if ($user->isAuditor()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akses ditolak (HTTP 403): Role Auditor hanya memiliki hak akses Read-Only dan tidak diizinkan mengubah dokumen PB.',
+                ], 403);
+            }
+            if (!$user->canEditDocument($document)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akses ditolak (HTTP 403): Anda hanya memiliki izin untuk mengedit dokumen PB dari divisi Anda sendiri (' . ($user->divisi ?? 'N/A') . ').',
+                ], 403);
+            }
+        }
+
         $validated = $request->validate([
             'nomor_pb'      => 'required|string|unique:documents,nomor_pb,' . $document->id,
             'tanggal_pb'    => 'required|date',
@@ -377,6 +405,22 @@ class DocumentController extends Controller
 
     public function destroy(Document $document)
     {
+        $user = Auth::user();
+        if ($user) {
+            if ($user->isAuditor()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akses ditolak (HTTP 403): Role Auditor hanya memiliki hak akses Read-Only dan tidak diizinkan menghapus dokumen.',
+                ], 403);
+            }
+            if ($user->isRequesterDivision()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akses ditolak (HTTP 403): Hanya Admin Warehouse yang memiliki izin untuk menghapus dokumen PB dari sistem.',
+                ], 403);
+            }
+        }
+
         // Business rule check: cannot delete if currently borrowed
         if (str_contains($document->status, 'Dipinjam')) {
             return response()->json([
@@ -530,6 +574,14 @@ class DocumentController extends Controller
 
     public function verifyPhysical(Request $request, Document $document)
     {
+        $user = Auth::user();
+        if ($user && !$user->canVerifyPhysical()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak (HTTP 403): Hanya Admin/Petugas Warehouse yang berhak melakukan verifikasi fisik dokumen.',
+            ], 403);
+        }
+
         // Guard 1: Only pending physical documents can be verified
         if (!str_contains($document->status, 'Menunggu')) {
             return response()->json([
@@ -649,6 +701,14 @@ class DocumentController extends Controller
      */
     public function rejectPhysical(Request $request, Document $document)
     {
+        $user = Auth::user();
+        if ($user && !$user->canVerifyPhysical()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak (HTTP 403): Hanya Admin/Petugas Warehouse yang berhak menolak atau meminta revisi fisik dokumen.',
+            ], 403);
+        }
+
         // Guard: Only pending physical documents can be rejected/returned for revision
         if (!str_contains($document->status, 'Menunggu')) {
             return response()->json([
@@ -707,6 +767,14 @@ class DocumentController extends Controller
      */
     public function relocate(Request $request)
     {
+        $user = Auth::user();
+        if ($user && !$user->canManageWarehouse()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak (HTTP 403): Hanya Admin/Petugas Warehouse yang berhak merelokasi dokumen antar box atau rak.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'document_ids'   => 'required|array|min:1',
             'document_ids.*' => 'required|integer|exists:documents,id',

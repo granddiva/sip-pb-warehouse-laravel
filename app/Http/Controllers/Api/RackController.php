@@ -121,6 +121,14 @@ class RackController extends Controller
 
     public function toggleLock(Box $box)
     {
+        $user = auth()->user();
+        if ($user && !$user->canManageWarehouse()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak (HTTP 403): Hanya Admin/Petugas Warehouse yang berhak mengubah status penguncian box.',
+            ], 403);
+        }
+
         $newStatus = $box->status === 'Penuh (Terkunci)' ? 'Tersedia' : 'Penuh (Terkunci)';
         $box->update(['status' => $newStatus]);
 
@@ -142,6 +150,14 @@ class RackController extends Controller
      */
     public function commitAudit(Request $request, Box $box)
     {
+        $user = auth()->user();
+        if ($user && !$user->canManageWarehouse()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak (HTTP 403): Hanya Admin/Petugas Warehouse yang berhak mengesahkan Stock Opname Box.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'matched_pbs'   => 'nullable|array',
             'matched_pbs.*' => 'string',

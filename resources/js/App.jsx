@@ -176,34 +176,60 @@ export default function App() {
       case 'dashboard':
         return (
           <DashboardPage
+            user={user}
             refreshKey={refreshKey}
             onRefresh={triggerRefresh}
             onNavigate={navigate}
             onToast={addToast}
-            onOpenReturnModal={(id, nomor, borrower) => setReturnModalData({ id, nomor_pb: nomor, nama_peminjam: borrower })}
+            onOpenReturnModal={(id, nomor, borrower) => {
+              if (!user?.can_manage_warehouse) {
+                addToast('Akses ditolak: Pengembalian berkas fisik hanya dapat disahkan oleh Admin/Petugas Warehouse.', 'error');
+                return;
+              }
+              setReturnModalData({ id, nomor_pb: nomor, nama_peminjam: borrower });
+            }}
           />
         );
       case 'documents':
         return (
           <DocumentsPage
+            user={user}
             refreshKey={refreshKey}
             onRefresh={triggerRefresh}
             onNavigate={navigate}
             onToast={addToast}
-            onOpenVerificationModal={(doc) => setVerificationModalDoc(doc)}
+            onOpenVerificationModal={(doc) => {
+              if (!user?.can_manage_warehouse) {
+                addToast('Akses ditolak: Hanya Admin/Petugas Warehouse yang berhak memverifikasi berkas fisik.', 'error');
+                return;
+              }
+              setVerificationModalDoc(doc);
+            }}
           />
         );
       case 'document-create':
+        if (user?.is_auditor) {
+          addToast('Akses ditolak: Role Auditor hanya memiliki hak akses Read-Only.', 'error');
+          navigate('documents');
+          return null;
+        }
         return (
           <DocumentFormPage
+            user={user}
             onRefresh={triggerRefresh}
             onNavigate={navigate}
             onToast={addToast}
           />
         );
       case 'document-edit':
+        if (user?.is_auditor) {
+          addToast('Akses ditolak: Role Auditor hanya memiliki hak akses Read-Only.', 'error');
+          navigate('documents');
+          return null;
+        }
         return (
           <DocumentFormPage
+            user={user}
             documentId={selectedDocId}
             onRefresh={triggerRefresh}
             onNavigate={navigate}
@@ -213,20 +239,40 @@ export default function App() {
       case 'document-detail':
         return (
           <DocumentDetailPage
+            user={user}
             documentId={selectedDocId}
             refreshKey={refreshKey}
             onRefresh={triggerRefresh}
             onNavigate={navigate}
             onToast={addToast}
             onOpenPreview={setPreviewFile}
-            onOpenReturnModal={(id, nomor, borrower) => setReturnModalData({ id, nomor_pb: nomor, nama_peminjam: borrower })}
-            onOpenBorrowModal={setBorrowModalDoc}
-            onOpenVerificationModal={(doc) => setVerificationModalDoc(doc)}
+            onOpenReturnModal={(id, nomor, borrower) => {
+              if (!user?.can_manage_warehouse) {
+                addToast('Akses ditolak: Pengembalian berkas fisik hanya dapat disahkan oleh Admin/Petugas Warehouse.', 'error');
+                return;
+              }
+              setReturnModalData({ id, nomor_pb: nomor, nama_peminjam: borrower });
+            }}
+            onOpenBorrowModal={(doc) => {
+              if (!user?.can_manage_warehouse) {
+                addToast('Akses ditolak: Sirkulasi peminjaman hanya dapat diproses oleh Admin/Petugas Warehouse.', 'error');
+                return;
+              }
+              setBorrowModalDoc(doc);
+            }}
+            onOpenVerificationModal={(doc) => {
+              if (!user?.can_manage_warehouse) {
+                addToast('Akses ditolak: Hanya Admin/Petugas Warehouse yang berhak memverifikasi berkas fisik.', 'error');
+                return;
+              }
+              setVerificationModalDoc(doc);
+            }}
           />
         );
       case 'racks':
         return (
           <WarehouseRacksPage
+            user={user}
             refreshKey={refreshKey}
             onRefresh={triggerRefresh}
             onNavigate={navigate}
@@ -236,17 +282,31 @@ export default function App() {
       case 'borrowings':
         return (
           <BorrowingsPage
+            user={user}
             refreshKey={refreshKey}
             onRefresh={triggerRefresh}
             onNavigate={navigate}
             onToast={addToast}
-            onOpenReturnModal={(id, nomor, borrower) => setReturnModalData({ id, nomor_pb: nomor, nama_peminjam: borrower })}
-            onOpenBorrowModal={(doc) => setBorrowModalDoc(doc || {})}
+            onOpenReturnModal={(id, nomor, borrower) => {
+              if (!user?.can_manage_warehouse) {
+                addToast('Akses ditolak: Pengembalian berkas fisik hanya dapat disahkan oleh Admin/Petugas Warehouse.', 'error');
+                return;
+              }
+              setReturnModalData({ id, nomor_pb: nomor, nama_peminjam: borrower });
+            }}
+            onOpenBorrowModal={(doc) => {
+              if (!user?.can_manage_warehouse) {
+                addToast('Akses ditolak: Sirkulasi peminjaman hanya dapat diproses oleh Admin/Petugas Warehouse.', 'error');
+                return;
+              }
+              setBorrowModalDoc(doc || {});
+            }}
           />
         );
       case 'qrcodes':
         return (
           <QrCodePrintPage
+            user={user}
             refreshKey={refreshKey}
             onRefresh={triggerRefresh}
             onNavigate={navigate}
@@ -256,6 +316,7 @@ export default function App() {
       case 'activity-logs':
         return (
           <AuditTrailPage
+            user={user}
             refreshKey={refreshKey}
             onRefresh={triggerRefresh}
             onToast={addToast}
@@ -264,6 +325,7 @@ export default function App() {
       default:
         return (
           <DashboardPage
+            user={user}
             refreshKey={refreshKey}
             onRefresh={triggerRefresh}
             onNavigate={navigate}
@@ -338,15 +400,30 @@ export default function App() {
 
       {/* Global Barcode & QR Code Smart Scanner Modal */}
       <QuickScanModal
+        user={user}
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
         onToast={addToast}
-        onOpenVerification={(doc) => setVerificationModalDoc(doc)}
+        onOpenVerification={(doc) => {
+          if (!user?.can_manage_warehouse) {
+            addToast('Akses ditolak: Hanya Admin/Petugas Warehouse yang berhak memverifikasi berkas fisik.', 'error');
+            return;
+          }
+          setVerificationModalDoc(doc);
+        }}
         onOpenBorrow={(doc) => {
+          if (!user?.can_manage_warehouse) {
+            addToast('Akses ditolak: Sirkulasi peminjaman hanya dapat diproses oleh Admin/Petugas Warehouse.', 'error');
+            return;
+          }
           navigate('borrowings');
           setBorrowModalDoc(doc);
         }}
         onOpenReturn={(activeBorrowing) => {
+          if (!user?.can_manage_warehouse) {
+            addToast('Akses ditolak: Pengembalian berkas fisik hanya dapat disahkan oleh Admin/Petugas Warehouse.', 'error');
+            return;
+          }
           setReturnModalData({
             id: activeBorrowing.id,
             nomor_pb: activeBorrowing.nomor_pb || 'Dokumen Terpinjam',

@@ -37,7 +37,8 @@ import { rackApi } from '../api';
 import RelocateDocumentsModal from '../components/RelocateDocumentsModal';
 import BoxStockOpnameModal from '../components/BoxStockOpnameModal';
 
-export default function WarehouseRacksPage({ onNavigate, onToast, refreshKey, onRefresh }) {
+export default function WarehouseRacksPage({ user, onNavigate, onToast, refreshKey, onRefresh }) {
+  const canManageWarehouse = user?.can_manage_warehouse;
   const [racks, setRacks] = useState([]);
   const [selectedRackId, setSelectedRackId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -912,38 +913,49 @@ export default function WarehouseRacksPage({ onNavigate, onToast, refreshKey, on
               </div>
 
               <div className="flex items-center gap-2 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setAuditBox(drawerBox)}
-                  className="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all bg-sky-600 hover:bg-sky-500 text-white shadow-md shadow-sky-600/30"
-                  title="Mulai Stock Opname & Audit Fisik isi box ini"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-sky-100" />
-                  <span>Audit Fisik Box</span>
-                </button>
+                {canManageWarehouse ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setAuditBox(drawerBox)}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all bg-sky-600 hover:bg-sky-500 text-white shadow-md shadow-sky-600/30"
+                      title="Mulai Stock Opname & Audit Fisik isi box ini"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5 text-sky-100" />
+                      <span>Audit Fisik Box</span>
+                    </button>
 
-                <button
-                  onClick={handleToggleBoxLock}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-                    drawerBox.status === 'Penuh (Terkunci)'
-                      ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-600/30'
-                      : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700'
-                  }`}
-                  title={
-                    drawerBox.status === 'Penuh (Terkunci)'
-                      ? 'Klik untuk membuka kunci box'
-                      : 'Kunci box ini jika fisik ordner sudah penuh'
-                  }
-                >
-                  {drawerBox.status === 'Penuh (Terkunci)' ? (
-                    <Lock className="w-3.5 h-3.5" />
-                  ) : (
-                    <Unlock className="w-3.5 h-3.5" />
-                  )}
-                  <span className="hidden sm:inline">
-                    {drawerBox.status === 'Penuh (Terkunci)' ? 'Terkunci Penuh' : 'Kunci Penuh'}
+                    <button
+                      onClick={handleToggleBoxLock}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                        drawerBox.status === 'Penuh (Terkunci)'
+                          ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-600/30'
+                          : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700'
+                      }`}
+                      title={
+                        drawerBox.status === 'Penuh (Terkunci)'
+                          ? 'Klik untuk membuka kunci box'
+                          : 'Kunci box ini jika fisik ordner sudah penuh'
+                      }
+                    >
+                      {drawerBox.status === 'Penuh (Terkunci)' ? (
+                        <Lock className="w-3.5 h-3.5" />
+                      ) : (
+                        <Unlock className="w-3.5 h-3.5" />
+                      )}
+                      <span className="hidden sm:inline">
+                        {drawerBox.status === 'Penuh (Terkunci)' ? 'Terkunci Penuh' : 'Kunci Penuh'}
+                      </span>
+                    </button>
+                  </>
+                ) : (
+                  <span
+                    className="text-[11px] font-semibold text-slate-400 bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700 cursor-not-allowed"
+                    title={`Aksi dibatasi untuk role ${user?.role || 'Pengguna'}. Hanya Admin Warehouse yang dapat mengunci atau mengaudit fisik.`}
+                  >
+                    🔒 Mode Lihat (Read-Only)
                   </span>
-                </button>
+                )}
 
                 <button
                   onClick={closeDrawer}
@@ -1102,14 +1114,25 @@ export default function WarehouseRacksPage({ onNavigate, onToast, refreshKey, on
 
                 {/* Left Column Bottom Action */}
                 <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => setAuditBox(drawerBox)}
-                    className="w-full py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-black shadow-md flex items-center justify-center gap-2 transition-all shadow-sky-600/20"
-                  >
-                    <ShieldCheck className="w-4 h-4 text-sky-100" />
-                    <span>Mulai Stock Opname / Audit Fisik</span>
-                  </button>
+                  {canManageWarehouse ? (
+                    <button
+                      type="button"
+                      onClick={() => setAuditBox(drawerBox)}
+                      className="w-full py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-black shadow-md flex items-center justify-center gap-2 transition-all shadow-sky-600/20"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-sky-100" />
+                      <span>Mulai Stock Opname / Audit Fisik</span>
+                    </button>
+                  ) : (
+                    <button
+                      disabled
+                      className="w-full py-2.5 rounded-xl bg-slate-100 text-slate-400 text-xs font-bold border border-slate-200 cursor-not-allowed flex items-center justify-center gap-2"
+                      title="Stock Opname hanya dapat dilakukan oleh Admin/Petugas Warehouse"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-slate-400" />
+                      <span>Stock Opname (Khusus Admin WH)</span>
+                    </button>
+                  )}
 
                   <button
                     onClick={() => onNavigate('qrcodes')}
@@ -1219,15 +1242,17 @@ export default function WarehouseRacksPage({ onNavigate, onToast, refreshKey, on
                               {doc.tanggal_indonesia}
                             </span>
                             <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setRelocateDoc(doc)}
-                                className="text-[11px] font-bold text-amber-700 hover:text-amber-800 hover:bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 transition-all flex items-center gap-1"
-                                title="Pindahkan berkas ini ke box atau lemari rak lain"
-                              >
-                                <ArrowRightLeft className="w-3 h-3" />
-                                <span>Relokasi</span>
-                              </button>
+                              {canManageWarehouse && (
+                                <button
+                                  type="button"
+                                  onClick={() => setRelocateDoc(doc)}
+                                  className="text-[11px] font-bold text-amber-700 hover:text-amber-800 hover:bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 transition-all flex items-center gap-1"
+                                  title="Pindahkan berkas ini ke box atau lemari rak lain"
+                                >
+                                  <ArrowRightLeft className="w-3 h-3" />
+                                  <span>Relokasi</span>
+                                </button>
+                              )}
                               <button
                                 onClick={() => {
                                   closeDrawer();

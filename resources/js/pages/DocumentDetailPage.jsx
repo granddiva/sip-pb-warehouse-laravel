@@ -20,6 +20,7 @@ import {
 import { documentApi, attachmentApi } from '../api';
 
 export default function DocumentDetailPage({
+  user,
   documentId,
   onNavigate,
   onToast,
@@ -32,6 +33,21 @@ export default function DocumentDetailPage({
 }) {
   const [doc, setDoc] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const canManageWarehouse = user?.can_manage_warehouse;
+  const isAuditor = user?.is_auditor;
+
+  const canEditDoc = () => {
+    if (isAuditor) return false;
+    if (canManageWarehouse) return true;
+    if (user?.is_requester_division && doc) {
+      if (!user?.divisi) return true;
+      const userDiv = user.divisi.toLowerCase().trim();
+      const docBagian = (doc.bagian || '').toLowerCase().trim();
+      return userDiv === docBagian || docBagian.includes(userDiv) || userDiv.includes(docBagian);
+    }
+    return false;
+  };
 
   // New Attachment form state
   const [showUploadForm, setShowUploadForm] = useState(false);
@@ -143,7 +159,7 @@ export default function DocumentDetailPage({
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Action: Verify Physical */}
-          {doc.status.includes('Menunggu') && onOpenVerificationModal && (
+          {doc.status.includes('Menunggu') && onOpenVerificationModal && canManageWarehouse && (
             <button
               onClick={() => onOpenVerificationModal(doc)}
               className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-md shadow-sky-600/30 flex items-center gap-1.5 transition-all"
@@ -154,7 +170,7 @@ export default function DocumentDetailPage({
           )}
 
           {/* Action: Revisi Berkas if status is Perlu Revisi Fisik */}
-          {doc.status.includes('Revisi') && (
+          {doc.status.includes('Revisi') && canEditDoc() && (
             <button
               onClick={() => onNavigate('document-edit', doc.id)}
               className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md shadow-amber-600/30 flex items-center gap-1.5 transition-all"
@@ -165,23 +181,25 @@ export default function DocumentDetailPage({
           )}
 
           {/* Action: Borrow or Return */}
-          {isBorrowed ? (
-            <button
-              onClick={() => onOpenReturnModal(doc.active_borrowing.id, doc.nomor_pb, doc.active_borrowing.nama_peminjam)}
-              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm shadow-emerald-600/30 flex items-center gap-1.5"
-            >
-              <CheckCircle className="w-4 h-4" />
-              <span>Kembalikan Berkas Fisik</span>
-            </button>
-          ) : !doc.status.includes('Menunggu') ? (
-            <button
-              onClick={() => onOpenBorrowModal(doc)}
-              className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-sm shadow-amber-600/30 flex items-center gap-1.5"
-            >
-              <Clock className="w-4 h-4" />
-              <span>Pinjam Berkas Fisik</span>
-            </button>
-          ) : null}
+          {canManageWarehouse && (
+            isBorrowed ? (
+              <button
+                onClick={() => onOpenReturnModal(doc.active_borrowing.id, doc.nomor_pb, doc.active_borrowing.nama_peminjam)}
+                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm shadow-emerald-600/30 flex items-center gap-1.5"
+              >
+                <CheckCircle className="w-4 h-4" />
+                <span>Kembalikan Berkas Fisik</span>
+              </button>
+            ) : !doc.status.includes('Menunggu') ? (
+              <button
+                onClick={() => onOpenBorrowModal(doc)}
+                className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-sm shadow-amber-600/30 flex items-center gap-1.5"
+              >
+                <Clock className="w-4 h-4" />
+                <span>Pinjam Berkas Fisik</span>
+              </button>
+            ) : null
+          )}
 
           {/* Action: QR Code */}
           <button
@@ -193,13 +211,24 @@ export default function DocumentDetailPage({
           </button>
 
           {/* Action: Edit */}
-          <button
-            onClick={() => onNavigate('document-edit', doc.id)}
-            className="px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-sm flex items-center gap-1.5"
-          >
-            <Edit className="w-4 h-4 text-slate-600" />
-            <span>Edit</span>
-          </button>
+          {canEditDoc() ? (
+            <button
+              onClick={() => onNavigate('document-edit', doc.id)}
+              className="px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-sm flex items-center gap-1.5"
+            >
+              <Edit className="w-4 h-4 text-slate-600" />
+              <span>Edit</span>
+            </button>
+          ) : (
+            <button
+              disabled
+              title={isAuditor ? 'Role Auditor: Read-Only' : `Hanya dokumen divisi ${user?.divisi || 'Anda'} yang dapat diedit`}
+              className="px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-100 text-slate-400 text-xs font-bold cursor-not-allowed flex items-center gap-1.5"
+            >
+              <Edit className="w-4 h-4 text-slate-400" />
+              <span>Edit</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -220,7 +249,7 @@ export default function DocumentDetailPage({
             </div>
           </div>
 
-          {onOpenVerificationModal && (
+          {onOpenVerificationModal && canManageWarehouse && (
             <button
               onClick={() => onOpenVerificationModal(doc)}
               className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-sm whitespace-nowrap flex-shrink-0 flex items-center gap-1.5 self-start sm:self-center"
@@ -463,13 +492,15 @@ export default function DocumentDetailPage({
             </p>
           </div>
 
-          <button
-            onClick={() => setShowUploadForm(!showUploadForm)}
-            className="px-3.5 py-1.5 rounded-xl border border-sky-600 text-sky-700 hover:bg-sky-50 text-xs font-bold transition-colors inline-flex items-center gap-1.5"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            <span>{showUploadForm ? 'Tutup Form Upload' : '+ Upload Lampiran Baru'}</span>
-          </button>
+          {canEditDoc() && (
+            <button
+              onClick={() => setShowUploadForm(!showUploadForm)}
+              className="px-3.5 py-1.5 rounded-xl border border-sky-600 text-sky-700 hover:bg-sky-50 text-xs font-bold transition-colors inline-flex items-center gap-1.5"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>{showUploadForm ? 'Tutup Form Upload' : '+ Upload Lampiran Baru'}</span>
+            </button>
+          )}
         </div>
 
         {/* Upload Form (Toggled) */}
@@ -540,13 +571,15 @@ export default function DocumentDetailPage({
               <div>
                 <div className="flex items-center justify-between text-xs text-sky-700 font-extrabold uppercase">
                   <span>{att.jenis_dokumen}</span>
-                  <button
-                    onClick={() => handleDeleteAttachment(att.id, att.file_name)}
-                    className="text-slate-400 hover:text-rose-600 p-0.5"
-                    title="Hapus Lampiran"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {canEditDoc() && (
+                    <button
+                      onClick={() => handleDeleteAttachment(att.id, att.file_name)}
+                      className="text-slate-400 hover:text-rose-600 p-0.5"
+                      title="Hapus Lampiran"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
                 <div className="text-xs font-bold text-slate-900 mt-2 truncate" title={att.file_name}>
                   {att.file_name}

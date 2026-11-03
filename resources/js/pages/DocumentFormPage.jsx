@@ -24,8 +24,9 @@ import {
 } from 'lucide-react';
 import { documentApi, rackApi } from '../api';
 
-export default function DocumentFormPage({ documentId, onNavigate, onToast, onRefresh }) {
+export default function DocumentFormPage({ user, documentId, onNavigate, onToast, onRefresh }) {
   const isEdit = Boolean(documentId);
+  const isRequester = user?.is_requester_division;
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(isEdit);
@@ -41,10 +42,10 @@ export default function DocumentFormPage({ documentId, onNavigate, onToast, onRe
   const [nomorPb, setNomorPb] = useState('');
   const [userEditedNo, setUserEditedNo] = useState(false);
   const [tanggalPb, setTanggalPb] = useState(new Date().toISOString().split('T')[0]);
-  const [bagian, setBagian] = useState('Workshop Machining & Threading');
-  const [namaPemohon, setNamaPemohon] = useState('');
-  const [nipPemohon, setNipPemohon] = useState('');
-  const [status, setStatus] = useState('Terverifikasi & Diarsipkan');
+  const [bagian, setBagian] = useState(user?.divisi || 'Workshop Machining & Threading');
+  const [namaPemohon, setNamaPemohon] = useState(user?.name || '');
+  const [nipPemohon, setNipPemohon] = useState(user?.nip || '');
+  const [status, setStatus] = useState(isRequester ? 'Menunggu Arsip Fisik' : 'Terverifikasi & Diarsipkan');
   const [lokasiRak, setLokasiRak] = useState('Rak A');
   const [nomorBox, setNomorBox] = useState('Box 01');
   const [catatanArsip, setCatatanArsip] = useState('');
@@ -127,6 +128,18 @@ export default function DocumentFormPage({ documentId, onNavigate, onToast, onRe
       setFetching(true);
       documentApi.getById(documentId).then((res) => {
         const d = res.data;
+
+        // RBAC check: requester division can only edit their own division PB
+        if (user?.is_requester_division && user?.divisi) {
+          const userDiv = user.divisi.toLowerCase().trim();
+          const docBagian = (d.bagian || '').toLowerCase().trim();
+          if (userDiv !== docBagian && !docBagian.includes(userDiv) && !userDiv.includes(docBagian)) {
+            onToast(`Akses ditolak: Anda hanya berhak mengedit dokumen divisi Anda (${user.divisi}).`, 'error');
+            onNavigate('documents');
+            return;
+          }
+        }
+
         setNomorPb(d.nomor_pb);
         setTanggalPb(d.tanggal_pb);
         setBagian(d.bagian);
@@ -148,7 +161,7 @@ export default function DocumentFormPage({ documentId, onNavigate, onToast, onRe
         setFetching(false);
       });
     }
-  }, [documentId, isEdit]);
+  }, [documentId, isEdit, user]);
 
   // Current rack & its boxes
   const currentRack = racksData.find((r) => r.kode_rak === lokasiRak);
@@ -659,22 +672,36 @@ export default function DocumentFormPage({ documentId, onNavigate, onToast, onRe
                   </label>
                   <div className="relative">
                     <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <select
-                      value={bagian}
-                      onChange={(e) => {
-                        setBagian(e.target.value);
-                        if (!isEdit && !userEditedNo) {
-                          fetchAutoNumber(e.target.value, tanggalPb, false);
-                        }
-                      }}
-                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white"
-                    >
-                      {bagianList.map((b) => (
-                        <option key={b.name} value={b.name}>
-                          [{b.code}] {b.name}
-                        </option>
-                      ))}
-                    </select>
+                    {isRequester && user?.divisi ? (
+                      <div className="space-y-1">
+                        <input
+                          type="text"
+                          readOnly
+                          value={bagian}
+                          className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-100 text-slate-700 cursor-not-allowed"
+                        />
+                        <span className="text-[10px] text-emerald-700 font-semibold block">
+                          ✓ Otomatis terkunci sesuai akun divisi Anda ({user.divisi})
+                        </span>
+                      </div>
+                    ) : (
+                      <select
+                        value={bagian}
+                        onChange={(e) => {
+                          setBagian(e.target.value);
+                          if (!isEdit && !userEditedNo) {
+                            fetchAutoNumber(e.target.value, tanggalPb, false);
+                          }
+                        }}
+                        className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white"
+                      >
+                        {bagianList.map((b) => (
+                          <option key={b.name} value={b.name}>
+                            [{b.code}] {b.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 </div>
 
@@ -724,6 +751,16 @@ export default function DocumentFormPage({ documentId, onNavigate, onToast, onRe
                       </div>
                       <p className="text-[11px] text-rose-600 leading-relaxed">
                         Dokumen ini tercatat dalam sirkulasi peminjaman fisik. Perubahan status kembali ke arsip harus dilakukan melalui menu <strong>Sirkulasi Peminjaman &gt; Kembalikan Berkas</strong> setelah verifikasi fisik dilakukan.
+                      </p>
+                    </div>
+                  ) : isRequester ? (
+                    <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">
+                      <div className="flex items-center gap-2 font-bold">
+                        <span className="w-2 h-2 rounded-full bg-amber-600" />
+                        <span>Status Default: Menunggu Arsip Fisik</span>
+                      </div>
+                      <p className="text-[11px] text-amber-800 leading-relaxed">
+                        Sebagai pemohon divisi, dokumen yang Anda ajukan berstatus <strong>Menunggu Arsip Fisik</strong>. Berkas hardcopy asli harus diserahkan ke gudang untuk diverifikasi dan dialokasikan ke ordner rak fisik oleh Admin Warehouse.
                       </p>
                     </div>
                   ) : (

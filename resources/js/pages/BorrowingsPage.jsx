@@ -16,12 +16,14 @@ import {
 import { borrowingApi } from '../api';
 
 export default function BorrowingsPage({
+  user,
   onNavigate,
   onToast,
   onOpenReturnModal,
   onOpenBorrowModal,
   refreshKey,
 }) {
+  const canManageWarehouse = user?.can_manage_warehouse;
   const [data, setData] = useState({ stats: {}, borrowings: { data: [] } });
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
@@ -80,13 +82,24 @@ export default function BorrowingsPage({
             <Download className="w-4 h-4 text-emerald-600" />
             <span>Ekspor Excel</span>
           </a>
-          <button
-            onClick={() => onOpenBorrowModal(null)}
-            className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md shadow-amber-600/30 flex items-center gap-2 transition-all"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>+ Catat Peminjaman Baru</span>
-          </button>
+          {canManageWarehouse ? (
+            <button
+              onClick={() => onOpenBorrowModal(null)}
+              className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md shadow-amber-600/30 flex items-center gap-2 transition-all"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>+ Catat Peminjaman Baru</span>
+            </button>
+          ) : (
+            <button
+              disabled
+              className="px-4 py-2.5 rounded-xl bg-slate-200 text-slate-400 text-xs font-bold cursor-not-allowed flex items-center gap-2"
+              title="Sirkulasi peminjaman hanya dapat diproses oleh Admin/Petugas Warehouse"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>+ Catat Peminjaman Baru</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -297,7 +310,7 @@ export default function BorrowingsPage({
                           <Printer className="w-3.5 h-3.5" />
                         </a>
 
-                        {b.status_pinjam === 'Dipinjam' && (
+                        {b.status_pinjam === 'Dipinjam' && canManageWarehouse && (
                           <button
                             onClick={() => onOpenReturnModal(b.id, b.nomor_pb, b.nama_peminjam)}
                             className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm"

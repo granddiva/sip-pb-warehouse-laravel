@@ -48,6 +48,7 @@ export const rackApi = {
   getRacks: () => api.get('/racks'),
   getBoxDocs: (boxId) => api.get(`/boxes/${boxId}/documents`),
   toggleBoxLock: (boxId) => api.post(`/boxes/${boxId}/toggle-lock`),
+  commitAudit: (boxId, data) => api.post(`/boxes/${boxId}/commit-audit`, data),
 };
 
 export const borrowingApi = {

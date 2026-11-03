@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { rackApi } from '../api';
 import RelocateDocumentsModal from '../components/RelocateDocumentsModal';
+import BoxStockOpnameModal from '../components/BoxStockOpnameModal';
 
 export default function WarehouseRacksPage({ onNavigate, onToast, refreshKey, onRefresh }) {
   const [racks, setRacks] = useState([]);
@@ -53,6 +54,9 @@ export default function WarehouseRacksPage({ onNavigate, onToast, refreshKey, on
   const [drawerDocs, setDrawerDocs] = useState([]);
   const [drawerLoading, setDrawerLoading] = useState(false);
   const [drawerSearch, setDrawerSearch] = useState('');
+
+  // Stock Opname modal state
+  const [auditBox, setAuditBox] = useState(null);
 
   // Relocation modal state
   const [relocateDoc, setRelocateDoc] = useState(null);
@@ -909,6 +913,16 @@ export default function WarehouseRacksPage({ onNavigate, onToast, refreshKey, on
 
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button
+                  type="button"
+                  onClick={() => setAuditBox(drawerBox)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all bg-sky-600 hover:bg-sky-500 text-white shadow-md shadow-sky-600/30"
+                  title="Mulai Stock Opname & Audit Fisik isi box ini"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-sky-100" />
+                  <span>Audit Fisik Box</span>
+                </button>
+
+                <button
                   onClick={handleToggleBoxLock}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
                     drawerBox.status === 'Penuh (Terkunci)'
@@ -1018,6 +1032,17 @@ export default function WarehouseRacksPage({ onNavigate, onToast, refreshKey, on
                           Maks: {drawerBox.kapasitas_maksimal} Map
                         </span>
                       </div>
+
+                      {/* Info Status Audit Terakhir */}
+                      <div className="text-[10px] bg-slate-50/90 rounded-lg p-2 border border-slate-100 flex items-center justify-between">
+                        <span className="text-slate-500 font-semibold flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3 text-sky-600" />
+                          <span>Audit Fisik:</span>
+                        </span>
+                        <span className={`font-mono font-bold ${drawerBox.last_audited_at ? 'text-emerald-700' : 'text-slate-500'}`}>
+                          {drawerBox.last_audited_formatted ? `✓ ${drawerBox.last_audited_formatted}` : 'Belum Pernah'}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -1076,13 +1101,24 @@ export default function WarehouseRacksPage({ onNavigate, onToast, refreshKey, on
                 </div>
 
                 {/* Left Column Bottom Action */}
-                <button
-                  onClick={() => onNavigate('qrcodes')}
-                  className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all"
-                >
-                  <Printer className="w-4 h-4 text-sky-400" />
-                  <span>Cetak Label Thermal Box Ini</span>
-                </button>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setAuditBox(drawerBox)}
+                    className="w-full py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-black shadow-md flex items-center justify-center gap-2 transition-all shadow-sky-600/20"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-sky-100" />
+                    <span>Mulai Stock Opname / Audit Fisik</span>
+                  </button>
+
+                  <button
+                    onClick={() => onNavigate('qrcodes')}
+                    className="w-full py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition-all"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Cetak Label Thermal Box Ini</span>
+                  </button>
+                </div>
               </div>
 
               {/* RIGHT COLUMN (7 Cols): Manifest Dokumen PB di Dalam Box */}
@@ -1238,6 +1274,24 @@ export default function WarehouseRacksPage({ onNavigate, onToast, refreshKey, on
         onSuccess={() => {
           fetchRacks();
           if (drawerBox) {
+            openBoxDrawer(drawerBox);
+          }
+          if (onRefresh) onRefresh();
+        }}
+      />
+
+      {/* Modal Stock Opname / Audit Fisik Ordner Box */}
+      <BoxStockOpnameModal
+        isOpen={!!auditBox}
+        box={auditBox}
+        rack={currentRack}
+        initialDocuments={drawerDocs}
+        onClose={() => setAuditBox(null)}
+        onToast={onToast}
+        onSuccess={(updatedBox) => {
+          fetchRacks();
+          if (drawerBox && drawerBox.id === updatedBox.id) {
+            setDrawerBox({ ...drawerBox, ...updatedBox });
             openBoxDrawer(drawerBox);
           }
           if (onRefresh) onRefresh();

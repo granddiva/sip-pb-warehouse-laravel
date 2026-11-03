@@ -44,6 +44,7 @@ Route::middleware(['web'])->group(function () {
         Route::get('/racks', [RackController::class, 'index']);
         Route::get('/boxes/{box}/documents', [RackController::class, 'boxDocuments']);
         Route::post('/boxes/{box}/toggle-lock', [RackController::class, 'toggleLock']);
+        Route::post('/boxes/{box}/commit-audit', [RackController::class, 'commitAudit']);
 
         // Sirkulasi Peminjaman
         Route::get('/borrowings/export', [BorrowingController::class, 'export']);

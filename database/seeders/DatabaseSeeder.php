@@ -409,5 +409,10 @@ class DatabaseSeeder extends Seeder
             'description'   => 'Verifikasi dan penempatan fisik berkas PB/BMS-LOG/2026/09/004 ke Rak C Box 05',
             'ip_address'    => '127.0.0.1',
         ]);
+
+        // 7. Seed 300 Authentic Oilfield Documents for PT Besmindo Materi Sewatama
+        if (app()->environment('local', 'development')) {
+            $this->call(DummyThreeHundredDocumentsSeeder::class);
+        }
     }
 }
